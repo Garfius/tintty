@@ -1,20 +1,23 @@
-#define TFT_BLACK   0x0000
-#define TFT_BLUE    0x0014
-#define TFT_RED     0xA000
-#define TFT_GREEN   0x0500
-#define TFT_CYAN    0x0514
-#define TFT_MAGENTA 0xA014
-#define TFT_YELLOW  0xA500
-#define TFT_WHITE   0xA514
+#include <Adafruit_GFX.h>
+#include <MCUFRIEND_kbv.h>
 
-#define TFT_BOLD_BLACK   0x8410
-#define TFT_BOLD_BLUE    0x001F
-#define TFT_BOLD_RED     0xF800
-#define TFT_BOLD_GREEN   0x07E0
-#define TFT_BOLD_CYAN    0x07FF
-#define TFT_BOLD_MAGENTA 0xF81F
-#define TFT_BOLD_YELLOW  0xFFE0
-#define TFT_BOLD_WHITE   0xFFFF
+#define TFT__BLACK   0x0000
+#define TFT__BLUE    0x0014
+#define TFT__RED     0xA000
+#define TFT__GREEN   0x0500
+#define TFT__CYAN    0x0514
+#define TFT__MAGENTA 0xA014
+#define TFT__YELLOW  0xA500
+#define TFT__WHITE   0xA514
+
+#define TFT__BOLD_BLACK   0x8410
+#define TFT__BOLD_BLUE    0x001F
+#define TFT__BOLD_RED     0xF800
+#define TFT__BOLD_GREEN   0x07E0
+#define TFT__BOLD_CYAN    0x07FF
+#define TFT__BOLD_MAGENTA 0xF81F
+#define TFT__BOLD_YELLOW  0xFFE0
+#define TFT__BOLD_WHITE   0xFFFF
 
 #include "tintty.h"
 #include "font454.h"
@@ -27,25 +30,25 @@
 bool tintty_cursor_key_mode_application;
 
 const uint16_t ANSI_COLORS[] = {
-    TFT_BLACK,
-    TFT_RED,
-    TFT_GREEN,
-    TFT_YELLOW,
-    TFT_BLUE,
-    TFT_MAGENTA,
-    TFT_CYAN,
-    TFT_WHITE
+    TFT__BLACK,
+    TFT__RED,
+    TFT__GREEN,
+    TFT__YELLOW,
+    TFT__BLUE,
+    TFT__MAGENTA,
+    TFT__CYAN,
+    TFT__WHITE
 };
 
 const uint16_t ANSI_BOLD_COLORS[] = {
-    TFT_BOLD_BLACK,
-    TFT_BOLD_RED,
-    TFT_BOLD_GREEN,
-    TFT_BOLD_YELLOW,
-    TFT_BOLD_BLUE,
-    TFT_BOLD_MAGENTA,
-    TFT_BOLD_CYAN,
-    TFT_BOLD_WHITE
+    TFT__BOLD_BLACK,
+    TFT__BOLD_RED,
+    TFT__BOLD_GREEN,
+    TFT__BOLD_YELLOW,
+    TFT__BOLD_BLUE,
+    TFT__BOLD_MAGENTA,
+    TFT__BOLD_CYAN,
+    TFT__BOLD_WHITE
 };
 
 const int16_t IDLE_CYCLE_MAX = 25000;
@@ -141,11 +144,11 @@ void _render(tintty_display *display) {
     if (state.out_char != 0) {
         const uint16_t x = state.out_char_col * CHAR_WIDTH;
         const uint16_t y = (state.out_char_row * CHAR_HEIGHT) % display->screen_height; // @todo deal with overflow from multiplication
-        const uint16_t fg_tft_color = state.bold ? ANSI_BOLD_COLORS[state.fg_ansi_color] : ANSI_COLORS[state.fg_ansi_color];
-        const uint16_t bg_tft_color = ANSI_COLORS[state.bg_ansi_color];
+        const uint16_t fg_TFT__color = state.bold ? ANSI_BOLD_COLORS[state.fg_ansi_color] : ANSI_COLORS[state.fg_ansi_color];
+        const uint16_t bg_TFT__color = ANSI_COLORS[state.bg_ansi_color];
 
         // compute pixel data for pushing to TFT
-        const uint16_t pushedData[4 * 6];
+        uint16_t pushedData[4 * 6];
         uint16_t *pushedDataHead = pushedData; // pointer to latest pixel in pushedData
 
         const uint8_t char_set = state.g4bank_char_set[state.out_char_g4bank & 0x03]; // ensure 0-3 value
@@ -154,13 +157,13 @@ void _render(tintty_display *display) {
             (state.out_char & 0x7f) // ensure max 7-bit character value
         ) * 6;
 
-        const uint16_t fg_b = (fg_tft_color & 0x001F) / 3; // @todo precompute division?
-        const uint16_t fg_g = ((fg_tft_color & 0x07E0) >> 5) / 3;
-        const uint16_t fg_r = ((fg_tft_color & 0xF800) >> 11) / 3;
+        const uint16_t fg_b = (fg_TFT__color & 0x001F) / 3; // @todo precompute division?
+        const uint16_t fg_g = ((fg_TFT__color & 0x07E0) >> 5) / 3;
+        const uint16_t fg_r = ((fg_TFT__color & 0xF800) >> 11) / 3;
 
-        const uint16_t bg_b = (bg_tft_color & 0x001F) / 3;
-        const uint16_t bg_g = ((bg_tft_color & 0x07E0) >> 5) / 3;
-        const uint16_t bg_r = ((bg_tft_color & 0xF800) >> 11) / 3;
+        const uint16_t bg_b = (bg_TFT__color & 0x001F) / 3;
+        const uint16_t bg_g = ((bg_TFT__color & 0x07E0) >> 5) / 3;
+        const uint16_t bg_r = ((bg_TFT__color & 0xF800) >> 11) / 3;
 
         for (int char_font_row = 0; char_font_row < 6; char_font_row++) {
             const unsigned char font_hline = pgm_read_byte(&font454[char_base + char_font_row]);
@@ -373,6 +376,9 @@ void _apply_graphic_rendition(
             state.bg_ansi_color = 0;
             state.fg_ansi_color = 7;
             state.bold = false;
+        } else if (arg_value == 7){
+            state.bg_ansi_color = 7;
+            state.fg_ansi_color = 0;
         } else if (arg_value == 1) {
             // bold
             state.bold = true;
@@ -837,7 +843,7 @@ void tintty_run(
     rendered.cursor_row = -1;
 
     // clear screen
-    display->fill_rect(0, 0, display->screen_width, display->screen_height, TFT_BLACK);
+    display->fill_rect(0, 0, display->screen_width, display->screen_height, TFT__BLACK);
 
     // reset TFT scroll to default
     display->set_vscroll(0);

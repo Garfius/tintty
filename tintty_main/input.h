@@ -3,7 +3,7 @@
 #include <MCUFRIEND_kbv.h>
 
 extern MCUFRIEND_kbv tft;
-
+extern Stream *userTty;
 // @todo move?
 #define ILI9341_WIDTH 240
 #define ILI9341_HEIGHT 320
@@ -12,3 +12,4 @@ extern MCUFRIEND_kbv tft;
 
 void input_init();
 void input_idle();
+void checkDoCalibration();

@@ -1,14 +1,28 @@
 #include "Arduino.h"
 #include <TouchScreen.h>
 #include <Adafruit_GFX.h>
+#include <EEPROM.h>
 
 #include "tintty.h"
 #include "input.h"
 
 // calibrated settings from TouchScreen_Calibr_native
-const int XP=8,XM=A2,YP=A3,YM=9; //240x320 ID=0x9341
-const int TS_LEFT=115,TS_RT=902,TS_TOP=72,TS_BOT=897;
+const int XP=6,XM=A2,YP=A1,YM=7; //240x320 ID=0x9341
+int TS_LEFT=203,TS_RT=911,TS_TOP=213,TS_BOT=944;
+/*
+#define MINPRESSURE 10
+#define MAXPRESSURE 1000
 
+#define YP A1  // must be an analog pin, use "An" notation!
+#define YM 7   // can be a digital pin
+#define XM A2  // must be an analog pin, use "An" notation!
+#define XP 6   // can be a digital pin
+
+#define TS_MINX 203
+#define TS_MINY 213
+#define TS_MAXX 911
+#define TS_MAXY 944
+*/
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 TSPoint tp;
 
@@ -19,7 +33,7 @@ uint8_t touchRisingCount = 0; // debounce counter for latch transition
 bool touchActive = false; // touch status latch state
 #define TOUCH_TRIGGER_COUNT 20
 
-#define MINPRESSURE 200
+#define MINPRESSURE 10
 #define MAXPRESSURE 1000
 
 #define KEYBOARD_GUTTER 4
@@ -58,7 +72,7 @@ struct touchKeyRow {
         KEY_ROW_A_Y,
         14,
         {
-            { 1, KEY_ROW_A_X(1) - 1 - KEY_GUTTER, '`', '~', 0 }, // shrunk width
+            { 1, KEY_ROW_A_X(1) - 1 - KEY_GUTTER, '\e', '~', 0 }, // shrunk width
             { KEY_ROW_A_X(1), KEY_WIDTH, '1', '!', 0 },
             { KEY_ROW_A_X(2), KEY_WIDTH, '2', '@', 0 },
             { KEY_ROW_A_X(3), KEY_WIDTH, '3', '#', 0 },
@@ -119,7 +133,7 @@ struct touchKeyRow {
             { KEY_ROW_C_X(9), KEY_WIDTH, ';', ':', 0 },
             { KEY_ROW_C_X(10), KEY_WIDTH, '\'', '"', 0 },
 
-            { KEY_ROW_C_X(11), ILI9341_WIDTH - 1 - KEY_ROW_C_X(11), 10, 10, 16 }
+            { KEY_ROW_C_X(11), ILI9341_WIDTH - 1 - KEY_ROW_C_X(11), 13, 13, 16 }
         }
     },
     {
@@ -235,7 +249,7 @@ void _input_draw_key(struct touchKeyRow *keyRow, struct touchKey *key) {
 
 void _input_draw_all_keys() {
     for (int i = 0; i < touchKeyRowCount; i++) {
-        const struct touchKeyRow *keyRow = &touchKeyRows[i];
+        struct touchKeyRow *keyRow = &touchKeyRows[i];
         const int keyCount = keyRow->keyCount;
 
         for (int j = 0; j < keyCount; j++) {
@@ -263,7 +277,7 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
     const int keyCount = activeRow->keyCount;
 
     for (int i = 0; i < keyCount; i++) {
-        const struct touchKey *key = &activeRow->keys[i];
+        struct touchKey *key = &activeRow->keys[i];
 
         if (xpos < key->x || xpos > key->x + key->width) {
             continue;
@@ -288,7 +302,7 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
             _input_draw_key(activeRow, activeKey);
 
             if (shiftIsActive) {
-                Serial.print(activeKey->shiftCode);
+                userTty->print(activeKey->shiftCode);
 
                 // clear back to lowercase unless caps-lock
                 if (!shiftIsSticky) {
@@ -298,30 +312,30 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
             } else if (controlIsActive) {
                 if (activeKey->code >= 97 && activeKey->code <= 122) {
                     // alpha control keys
-                    Serial.print((char)(activeKey->code - 96));
+                    userTty->print((char)(activeKey->code - 96));
                 } else if (activeKey->code >= 91 && activeKey->code <= 93) {
                     // [, / and ] control keys
                     // @todo other stragglers
-                    Serial.print((char)(activeKey->code - 91 + 27));
+                    userTty->print((char)(activeKey->code - 91 + 27));
                 }
 
                 // always clear back to normal
                 _input_set_mode(false, false, false);
                 _input_draw_all_keys();
             } else if (activeKey->code >= KEYCODE_ARROW_START && activeKey->code < KEYCODE_ARROW_START + 4) {
-                Serial.print((char)27); // Esc
-                Serial.print(tintty_cursor_key_mode_application ? 'O' : '['); // different code depending on terminal state
-                Serial.print((char)(activeKey->code - KEYCODE_ARROW_START + 'A'));
+                userTty->print((char)27); // Esc
+                userTty->print(tintty_cursor_key_mode_application ? 'O' : '['); // different code depending on terminal state
+                userTty->print((char)(activeKey->code - KEYCODE_ARROW_START + 'A'));
             } else {
-                Serial.print(activeKey->code);
+                userTty->print(activeKey->code);
             }
         }
     }
 }
 
 void _input_process_release() {
-    const struct touchKeyRow *releasedKeyRow = activeRow;
-    const struct touchKey *releasedKey = activeKey;
+    struct touchKeyRow *releasedKeyRow = activeRow;
+    struct touchKey *releasedKey = activeKey;
 
     activeRow = NULL;
     activeKey = NULL;
@@ -329,7 +343,9 @@ void _input_process_release() {
     _input_draw_key(releasedKeyRow, releasedKey);
 }
 
-void input_init() {
+void input_init(){
+    //checkDoCalibration();
+    
     uint16_t bgColor = tft.color565(0x20, 0x20, 0x20);
 
     tft.fillRect(0, ILI9341_HEIGHT - KEYBOARD_HEIGHT, ILI9341_WIDTH, KEYBOARD_HEIGHT, bgColor);
@@ -338,10 +354,10 @@ void input_init() {
 
     _input_draw_all_keys();
 }
-
+int16_t tmp;
 void input_idle() {
-    // if (inputSerial.available()) {
-    //   Serial.write(inputSerial.read());
+    // if (inputuserTty->available()) {
+    //   userTty->write(inputuserTty->read());
     // }
 
     // only poll once every 10 iterations
@@ -354,33 +370,55 @@ void input_idle() {
 
     // get raw touch values and reset the mode of the touchscreen pins due to them being shared
     tp = ts.getPoint();
-    pinMode(XM, OUTPUT);
-    pinMode(YP, OUTPUT);
+    /*tmp = tp.y;
+    tp.y = tp.x;
+    tp.x = tmp;*/
+
+    /*if((tp.z >  0) && (tp.z <  7000)){
+        userTty->print(tp.z);
+        userTty->write('|');
+    }*/
+    pinMode(XM, OUTPUT);//16?
+    pinMode(YP, OUTPUT);// 17?
 
     // debounce the touch status
     const bool isRising = tp.z > MINPRESSURE && tp.z < MAXPRESSURE;
 
     if (isRising) {
+        /*userTty->print(touchRisingCount);
+        userTty->write('|');*/
         touchRisingCount = min(TOUCH_TRIGGER_COUNT, touchRisingCount + 1);
     } else {
+        //userTty->write('-');
         touchRisingCount = max(0, touchRisingCount - 1);
     }
 
     // perform the status latch transitions
     if (!touchActive) {
         // catch the rising transition and flip the status latch on
+        
         if (isRising && touchRisingCount == TOUCH_TRIGGER_COUNT) {
+            /*userTty->write('x');
+            userTty->print(tp.x);
+            userTty->write('y');
+            userTty->println(tp.y);*/
             // flip to active mode
             touchActive = true;
 
             const uint16_t xpos = map(tp.x, TS_LEFT, TS_RT, 0, ILI9341_WIDTH);
-            const uint16_t ypos = map(tp.y, TS_TOP, TS_BOT, 0, ILI9341_HEIGHT);
+            const uint16_t ypos = map(tp.y, TS_BOT,TS_TOP, 0, ILI9341_HEIGHT);
 
             // @todo support autorepeat
+            /*userTty->write('x');
+            userTty->print(xpos);
+            userTty->write('y');
+            userTty->println(ypos);*/
+            
             _input_process_touch(xpos, ypos);
         }
     } else if (touchActive) {
         // flip status latch to off once settled back to zero
+        
         if (!isRising && touchRisingCount == 0) {
             touchActive = false;
 
@@ -388,3 +426,85 @@ void input_idle() {
         }
     }
 }
+
+void writeUint16_t(int address, uint16_t value) {
+  // Write the high byte (most significant byte) at the address
+  EEPROM.write(address, value >> 8);
+  // Write the low byte (least significant byte) at the next address
+  EEPROM.write(address + 1, value & 0xFF);
+}
+
+uint16_t readUint16_t(int address) {
+  // Read the high byte (most significant byte) from the address
+  uint16_t value = EEPROM.read(address) << 8;
+  // Read the low byte (least significant byte) from the next address
+  value |= EEPROM.read(address + 1);
+  return value;
+}
+
+/**
+ * int TS_LEFT,TS_RT,TS_TOP,TS_BOT;
+*/
+void checkDoCalibration(){
+    int16_t pointsX[4];
+    int16_t pointsY[4];
+    tp = ts.getPoint();
+    if(!(tp.z > MINPRESSURE && tp.z < MAXPRESSURE)){// do calibrate    
+        // load from eeprom
+        return;
+    }
+    userTty->println("calibrate");
+
+    bool pointDone = false;
+    tft.fillCircle(20, 20,3, 0xF800);
+    while(!pointDone){
+        tp = ts.getPoint();
+        if(tp.z > MINPRESSURE && tp.z < MAXPRESSURE){// do calibrate
+            pointsX[0] = tp.x;
+            pointsY[0] = tp.y;
+            pointDone = true;
+        }
+    }
+    pointDone = false;
+    tft.fillCircle(220, 20,3, 0xF800);
+    while(!pointDone){
+        tp = ts.getPoint();
+        if(tp.z > MINPRESSURE && tp.z < MAXPRESSURE){// do calibrate
+            pointsX[1] = tp.x;
+            pointsY[1] = tp.y;
+            pointDone = true;
+        }
+    }
+    pointDone = false;
+    tft.fillCircle(220, 300,3, 0xF800);
+    while(!pointDone){
+        tp = ts.getPoint();
+        if(tp.z > MINPRESSURE && tp.z < MAXPRESSURE){// do calibrate
+            pointsX[2] = tp.x;
+            pointsY[2] = tp.y;
+            pointDone = true;
+        }
+    }
+    pointDone = false;
+    tft.fillCircle(20, 300, 3, 0xF800);
+    while(!pointDone){
+        tp = ts.getPoint();
+        if(tp.z > MINPRESSURE && tp.z < MAXPRESSURE){// do calibrate
+            pointsX[3] = tp.x;
+            pointsY[3] = tp.y;
+            pointDone = true;
+        }
+    }
+
+    // maxims son a TS_RT i TS_BOT
+    for(int i=0;i< 4;i++){
+        userTty->print("i=");
+        userTty->println(i);
+        userTty->print("x=");
+        userTty->println(pointsX[i]);
+        userTty->print("y=");
+        userTty->println(pointsX[i]);
+    }
+
+}
+Stream *userTty;
