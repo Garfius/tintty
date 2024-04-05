@@ -7,7 +7,9 @@ Tiny console terminal implemented in Arduino C.
 ## Prerequisites
 
 - Adafruit GFX
-- MCUFRIEND 2.4inch screen
+- MCUFRIEND 2.4inch screen ILI9341 
+- CircularBuffer
+- tested ok: Arduino leonardo
 
 ## Development
 
