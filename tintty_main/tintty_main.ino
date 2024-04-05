@@ -8,6 +8,10 @@
  * Original reference: VT100 emulation code written by Martin K. Schroeder
  * and modified by Peter Scargill.
  * 
+ * Warning:
+    RAM   [========  ]  82.3% (used 2108 bytes from 2560 bytes)
+    Flash [==========]  98.8% (used 28326 bytes from 28672 bytes)
+ * 
  * to-do:
  * eeprom checkDoCalibration
  * Touch pints
