@@ -1,5 +1,5 @@
 #include <Adafruit_GFX.h>
-#include <MCUFRIEND_kbv.h>
+#include <TFT_eSPI.h>
 
 #define TFT__BLACK   0x0000
 #define TFT__BLUE    0x0014
@@ -24,7 +24,7 @@
 
 #define CHAR_WIDTH TINTTY_CHAR_WIDTH
 #define CHAR_HEIGHT TINTTY_CHAR_HEIGHT
-
+static char identifyTerminal[] = "\e[?1;0c\0";
 // exported variable for input logic
 // @todo refactor
 bool tintty_cursor_key_mode_application;
@@ -146,67 +146,18 @@ void _render(tintty_display *display) {
         const uint16_t y = (state.out_char_row * CHAR_HEIGHT) % display->screen_height; // @todo deal with overflow from multiplication
         const uint16_t fg_TFT__color = state.bold ? ANSI_BOLD_COLORS[state.fg_ansi_color] : ANSI_COLORS[state.fg_ansi_color];
         const uint16_t bg_TFT__color = ANSI_COLORS[state.bg_ansi_color];
-
         // compute pixel data for pushing to TFT
         uint16_t pushedData[4 * 6];
         uint16_t *pushedDataHead = pushedData; // pointer to latest pixel in pushedData
 
         const uint8_t char_set = state.g4bank_char_set[state.out_char_g4bank & 0x03]; // ensure 0-3 value
-        const int char_base = (
-            (char_set & 0x01) * 128 + // ensure 0-1 value
-            (state.out_char & 0x7f) // ensure max 7-bit character value
-        ) * 6;
+        
+        tft.setCursor(x,y);
+        tft.setTextColor(fg_TFT__color,bg_TFT__color);
+        
+        tft.write(state.out_char);
 
-        const uint16_t fg_b = (fg_TFT__color & 0x001F) / 3; // @todo precompute division?
-        const uint16_t fg_g = ((fg_TFT__color & 0x07E0) >> 5) / 3;
-        const uint16_t fg_r = ((fg_TFT__color & 0xF800) >> 11) / 3;
-
-        const uint16_t bg_b = (bg_TFT__color & 0x001F) / 3;
-        const uint16_t bg_g = ((bg_TFT__color & 0x07E0) >> 5) / 3;
-        const uint16_t bg_r = ((bg_TFT__color & 0xF800) >> 11) / 3;
-
-        for (int char_font_row = 0; char_font_row < 6; char_font_row++) {
-            const unsigned char font_hline = pgm_read_byte(&font454[char_base + char_font_row]);
-
-            for (int char_font_bitoffset = 6; char_font_bitoffset >= 0; char_font_bitoffset -= 2) {
-                const unsigned char font_hline_mask = 3 << char_font_bitoffset;
-                const unsigned char fg_value = (font_hline & font_hline_mask) >> char_font_bitoffset;
-
-                // lerp colour components
-                const unsigned char bg_value = 3 - fg_value;
-
-                const uint16_t b = (fg_b * fg_value + bg_b * bg_value);
-                const uint16_t g = (fg_g * fg_value + bg_g * bg_value) << 5;
-                const uint16_t r = (fg_r * fg_value + bg_r * bg_value) << 11;
-
-                *pushedDataHead = (r | g | b);
-                pushedDataHead++;
-            }
-        }
-
-        // perform TFT data push up to bottom edge of buffer
-        const int preWrapHeight = min(display->screen_height - y, 6);
-        const int postWrapHeight = 6 - preWrapHeight;
-
-        display->draw_pixels(
-            x,
-            y,
-            4,
-            preWrapHeight,
-            pushedData
-        );
-
-        // perform TFT data push wrapped around from top edge of buffer
-        if (postWrapHeight > 0) {
-            display->draw_pixels(
-                x,
-                0,
-                4,
-                postWrapHeight,
-                pushedData + 4 * preWrapHeight
-            );
-        }
-
+        
         // line-before
         // @todo detect when straddling edge of buffer
         if (state.out_clear_before > 0) {
@@ -654,7 +605,7 @@ void _exec_escape_code(
 
         case 'Z':
             // Identify Terminal (DEC Private)
-            _send_sequence(send_char, "\e[?1;0c"); // DA response: no options
+            _send_sequence(send_char, identifyTerminal); // DA response: no options
             break;
 
         case '7':
@@ -853,7 +804,7 @@ void tintty_run(
 
     // send CR to indicate that the screen is ready
     // (this works with the agetty --wait-cr option to help wait until Arduino boots)
-    send_char('\r');
+    //send_char('\r');
 
     // main read cycle
     while (1) {

@@ -1,15 +1,16 @@
 #include "Arduino.h"
-#include <TouchScreen.h>
-#include <Adafruit_GFX.h>
 #include <EEPROM.h>
 
 #include "tintty.h"
 #include "input.h"
 
 // calibrated settings from TouchScreen_Calibr_native
-const int XP=6,XM=A2,YP=A1,YM=7; //240x320 ID=0x9341
+//const int XP=6,XM=A2,YP=A1,YM=7; //240x320 ID=0x9341 leonardo
 int TS_LEFT=203,TS_RT=911,TS_TOP=213,TS_BOT=944;
 /*
+// using stock MCUFRIEND 2.4inch shield
+
+
 #define MINPRESSURE 10
 #define MAXPRESSURE 1000
 
@@ -23,18 +24,8 @@ int TS_LEFT=203,TS_RT=911,TS_TOP=213,TS_BOT=944;
 #define TS_MAXX 911
 #define TS_MAXY 944
 */
-TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
-TSPoint tp;
 
-uint8_t touchCountdown = 0;
-#define TOUCH_POLL_FREQUENCY 40
-
-uint8_t touchRisingCount = 0; // debounce counter for latch transition
-bool touchActive = false; // touch status latch state
 #define TOUCH_TRIGGER_COUNT 20
-
-#define MINPRESSURE 10
-#define MAXPRESSURE 1000
 
 #define KEYBOARD_GUTTER 4
 
@@ -50,6 +41,8 @@ bool touchActive = false; // touch status latch state
 #define KEY_ROW_D_X(index) (32 + (KEY_WIDTH + KEY_GUTTER) * index)
 #define ARROW_KEY_X(index) (ILI9341_WIDTH - (KEY_WIDTH + KEY_GUTTER) * (4 - index))
 
+
+//------------------ memory leak, mapped to char
 #define KEYCODE_SHIFT -20
 #define KEYCODE_CAPS -21
 #define KEYCODE_CONTROL -22
@@ -59,7 +52,8 @@ const int touchKeyRowCount = 5;
 
 struct touchKey {
     int16_t x, width;
-    char code, shiftCode, label;
+    int code, shiftCode; // <-- enten com va això i ho tens arreglat, busca per les fletxes, linia 305,392,390?
+    char label;
 };
 
 struct touchKeyRow {
@@ -242,7 +236,7 @@ void _input_draw_key(struct touchKeyRow *keyRow, struct touchKey *key) {
     tft.setCursor(key->x + (key->width / 2) - 3, rowCY + (KEY_HEIGHT / 2) - 4);
     tft.print(
         key->label == 0
-            ? (shiftIsActive ? key->shiftCode : key->code)
+            ? (shiftIsActive ? (char)key->shiftCode : (char)key->code)
             : key->label
     );
 }
@@ -302,7 +296,7 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
             _input_draw_key(activeRow, activeKey);
 
             if (shiftIsActive) {
-                userTty->print(activeKey->shiftCode);
+                userTty->print((char)activeKey->shiftCode);
 
                 // clear back to lowercase unless caps-lock
                 if (!shiftIsSticky) {
@@ -327,7 +321,7 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
                 userTty->print(tintty_cursor_key_mode_application ? 'O' : '['); // different code depending on terminal state
                 userTty->print((char)(activeKey->code - KEYCODE_ARROW_START + 'A'));
             } else {
-                userTty->print(activeKey->code);
+                userTty->print((char)activeKey->code);
             }
         }
     }
@@ -354,76 +348,25 @@ void input_init(){
 
     _input_draw_all_keys();
 }
-int16_t tmp;
+#define keyboardAutoRepeatMillis 200
+uint16_t xpos,ypos;
+bool isTouching = false;
+unsigned int nextPush = 0;
 void input_idle() {
-    // if (inputuserTty->available()) {
-    //   userTty->write(inputuserTty->read());
-    // }
-
-    // only poll once every 10 iterations
-    if (touchCountdown > 0) {
-        touchCountdown--;
-        return;
-    }
-
-    touchCountdown = TOUCH_POLL_FREQUENCY;
-
-    // get raw touch values and reset the mode of the touchscreen pins due to them being shared
-    tp = ts.getPoint();
-    /*tmp = tp.y;
-    tp.y = tp.x;
-    tp.x = tmp;*/
-
-    /*if((tp.z >  0) && (tp.z <  7000)){
-        userTty->print(tp.z);
-        userTty->write('|');
-    }*/
-    pinMode(XM, OUTPUT);//16?
-    pinMode(YP, OUTPUT);// 17?
-
-    // debounce the touch status
-    const bool isRising = tp.z > MINPRESSURE && tp.z < MAXPRESSURE;
-
-    if (isRising) {
-        /*userTty->print(touchRisingCount);
-        userTty->write('|');*/
-        touchRisingCount = min(TOUCH_TRIGGER_COUNT, touchRisingCount + 1);
-    } else {
-        //userTty->write('-');
-        touchRisingCount = max(0, touchRisingCount - 1);
-    }
-
-    // perform the status latch transitions
-    if (!touchActive) {
-        // catch the rising transition and flip the status latch on
-        
-        if (isRising && touchRisingCount == TOUCH_TRIGGER_COUNT) {
-            /*userTty->write('x');
-            userTty->print(tp.x);
-            userTty->write('y');
-            userTty->println(tp.y);*/
-            // flip to active mode
-            touchActive = true;
-
-            const uint16_t xpos = map(tp.x, TS_LEFT, TS_RT, 0, ILI9341_WIDTH);
-            const uint16_t ypos = map(tp.y, TS_BOT,TS_TOP, 0, ILI9341_HEIGHT);
-
-            // @todo support autorepeat
-            /*userTty->write('x');
-            userTty->print(xpos);
-            userTty->write('y');
-            userTty->println(ypos);*/
-            
-            _input_process_touch(xpos, ypos);
+    if (tft.getTouch(&xpos, &ypos)) {
+        if(!isTouching){
+            nextPush = millis()+keyboardAutoRepeatMillis;
+            isTouching = true;
+            _input_process_touch(xpos, ypos);// <-- empalme!!
+        }else{
+            if(millis() > nextPush){
+                _input_process_release();// <-- empalme!!
+                _input_process_touch(xpos, ypos);// <-- empalme!!
+            }
         }
-    } else if (touchActive) {
-        // flip status latch to off once settled back to zero
-        
-        if (!isRising && touchRisingCount == 0) {
-            touchActive = false;
-
-            _input_process_release();
-        }
+    }else{
+        isTouching = false;
+        _input_process_release();// <-- empalme!!
     }
 }
 
@@ -444,7 +387,6 @@ uint16_t readUint16_t(int address) {
 
 /**
  * int TS_LEFT,TS_RT,TS_TOP,TS_BOT;
-*/
 void checkDoCalibration(){
     int16_t pointsX[4];
     int16_t pointsY[4];
@@ -507,4 +449,10 @@ void checkDoCalibration(){
     }
 
 }
+*/
 Stream *userTty;
+//Adafruit_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
+
+TFT_eSPI tft = TFT_eSPI();
+
+//MCUFRIEND_kbv tft;

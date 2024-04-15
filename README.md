@@ -6,10 +6,22 @@ Tiny console terminal implemented in Arduino C.
 
 ## Prerequisites
 
-- Adafruit GFX
-- MCUFRIEND 2.4inch screen ILI9341 
-- CircularBuffer
-- tested ok: Arduino leonardo
+- TFT_eSPI <--User_Setup.h--> move to the lib. folder, overWrite
+- rp2040 and ili9488
+- https://github.com/earlephilhower/platform-raspberrypi
+
+## pins:
+
+- t_irq - GP6 - not used 
+- t_out - TFT_MISO  16
+- CS - TFT_CS    17
+- TFT_MOSI  19 SDI & T_DIN
+- SCK 18 T_CLK
+- LED - TO 3V3 TO 5
+- TFT_RST   3
+- D/C    2
+
+- Choose Serial console Stream device at setup()
 
 ## Development
 
