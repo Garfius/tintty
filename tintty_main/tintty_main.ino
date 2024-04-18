@@ -2,6 +2,7 @@
 #define LOCAL_BUFFER_SIZE 800
 #include <Arduino.h>
 #include <LittleFS.h>
+#include <EEPROM.h>
 /**
  * TinTTY main sketch
  * by Nick Matantsev 2017 & Gerard Forcada 2024
@@ -101,36 +102,46 @@ void checkBuffer(){
  * el segon ha de ser el negat del primer
 */
 void tft_espi_calibrate_touch(){
-  uint16_t calibrationData[5];
+  uint16_t calibrationData[7];// els 2 extra son per fer el check de si es vol fer a mà
+  uint8_t *calibrationDataBytePoint = (uint8_t *)calibrationData;
   uint8_t calDataOK = 0;
-
-  if (!LittleFS.begin()){
-    giveErrorVisibility(false);
-  }
-
-  bool tmp = tft.getTouch(&calibrationData[0], &calibrationData[1]);
-  // check if calibration file exists
-  if (LittleFS.exists(CALIBRATION_FILE)) {
-    File f = LittleFS.open(CALIBRATION_FILE, "r");
-    if (f) {
-      if (f.readBytes((char *)calibrationData, 14) == 14)
-        calDataOK = 1;
-      f.close();
-    }
-  }
+  uint8_t calDataTst = 0;
+  //-------------------eeprom inici
   
-  if (calDataOK || tmp) {
-    // calibration data valid
+  calDataOK = EEPROM.read(0);
+  calDataTst = ~EEPROM.read(1);
+  calDataOK = calDataOK == calDataTst;
+  int eePos = 2;
+  
+  if (calDataOK && (!tft.getTouch(&calibrationData[5], &calibrationData[6]))) {
+    // calibration data valid & NO TSOLICITED
+    for(int i = 0; i < 10; i++) {
+      calDataTst = EEPROM.read(eePos+i);
+      calibrationDataBytePoint[i] = calDataTst;
+      eePos++;
+    }
     tft.setTouch(calibrationData);
   } else {
+    if(tft.getTouch(&calibrationData[5], &calibrationData[6])){
+      tft.fillScreen(TFT_YELLOW);  
+      delay(1000);
+      tft.fillScreen(TFT_BLACK);  
+    }
     // data not valid. recalibrate
     tft.calibrateTouch(calibrationData, TFT_WHITE, TFT_RED, 15);
     // store data
-    File f = LittleFS.open(CALIBRATION_FILE, "w");
-    if (f) {
-      f.write((const unsigned char *)calibrationData, 14);
-      f.close();
+    while(calDataOK == EEPROM.read(0))calDataOK = (uint8_t)random(0,255); // firma
+    EEPROM.write(0,calDataOK);
+    calDataTst = ~calDataOK;
+    EEPROM.write(1,calDataTst);
+    int eePos = 2;
+    for(int i = 0; i < 10; i++) {
+      calDataTst = calibrationDataBytePoint[i];
+      EEPROM.write(eePos+i, calDataTst);
+      eePos++;
     }
+    EEPROM.commit();
+    EEPROM.end();
     tft.fillScreen(TFT_BLACK);
   }
 
@@ -141,6 +152,7 @@ void setup() {
   userTty = &Serial1;
   //-----------------------
   giveErrorVisibility(true);
+  EEPROM.begin(255);
   tft.begin();
   tft.setFreeFont(GLCD);
   tft.setTextSize(1);
