@@ -384,7 +384,18 @@ uint16_t readUint16_t(int address) {
   value |= EEPROM.read(address + 1);
   return value;
 }
-
+void giveErrorVisibility(bool init){
+    if(init){
+        pinMode(errorLed,OUTPUT);
+        digitalWrite(errorLed,LOW);
+        delay(250);
+        digitalWrite(errorLed,HIGH);
+        delay(250);
+        digitalWrite(errorLed,LOW);
+    }else{
+        digitalWrite(errorLed,HIGH);
+    }
+}
 /**
  * int TS_LEFT,TS_RT,TS_TOP,TS_BOT;
 void checkDoCalibration(){

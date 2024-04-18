@@ -1,8 +1,8 @@
 
 #include "Arduino.h"
 #include "input.h"
-#define TINTTY_CHAR_WIDTH 5
-#define TINTTY_CHAR_HEIGHT 7
+#define TINTTY_CHAR_WIDTH (5+1)
+#define TINTTY_CHAR_HEIGHT (7+1)
 
 extern bool tintty_cursor_key_mode_application;
 /**
