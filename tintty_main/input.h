@@ -23,7 +23,7 @@ pushToSprite
 #define LCD_RD A0
 // optional
 #define LCD_RESET A4
-extern TFT_eSPI tft;
+extern TFT_eSPI tft;// AQUI TENS ELS DOS -- SPRITE NEW
 //extern Adafruit_TFTLCD tft;
 extern Stream *userTty;
 #define errorLed 6

@@ -1,7 +1,6 @@
 //#define SERIAL_RX_BUFFER_SIZE 255
 #define LOCAL_BUFFER_SIZE 800
 #include <Arduino.h>
-#include <LittleFS.h>
 #include <EEPROM.h>
 /**
  * TinTTY main sketch
@@ -98,8 +97,7 @@ void checkBuffer(){
 }
 #define CALIBRATION_FILE "/calibrationData"
 /**
- * eeprom.h for avr
- * el segon ha de ser el negat del primer
+ * NOT optimized AT ALL! just debugged
 */
 void tft_espi_calibrate_touch(){
   uint16_t calibrationData[7];// els 2 extra son per fer el check de si es vol fer a mà

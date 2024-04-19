@@ -6,11 +6,10 @@
 
 // calibrated settings from TouchScreen_Calibr_native
 //const int XP=6,XM=A2,YP=A1,YM=7; //240x320 ID=0x9341 leonardo
-int TS_LEFT=203,TS_RT=911,TS_TOP=213,TS_BOT=944;
 /*
 // using stock MCUFRIEND 2.4inch shield
 
-
+// AQUI TREBALLES EN REAL -- SPRITE NEW
 #define MINPRESSURE 10
 #define MAXPRESSURE 1000
 
@@ -352,7 +351,7 @@ void input_init(){
 uint16_t xpos,ypos;
 bool isTouching = false;
 unsigned int nextPush = 0;
-void input_idle() {
+void input_idle() {// drawFastHLine <--- cursor
     if (tft.getTouch(&xpos, &ypos)) {
         if(!isTouching){
             nextPush = millis()+keyboardAutoRepeatMillis;
@@ -385,7 +384,7 @@ uint16_t readUint16_t(int address) {
   return value;
 }
 void giveErrorVisibility(bool init){
-    if(init){
+    if(init){// breakpoint here
         pinMode(errorLed,OUTPUT);
         digitalWrite(errorLed,LOW);
         delay(250);
@@ -465,5 +464,5 @@ Stream *userTty;
 //Adafruit_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 
 TFT_eSPI tft = TFT_eSPI();
-
+// AQUI TENS ELS MONTES -- SPRITE NEW
 //MCUFRIEND_kbv tft;

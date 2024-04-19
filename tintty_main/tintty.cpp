@@ -21,11 +21,12 @@
 
 #include "tintty.h"
 #include "font454.h"
-
+#define cursorBlinkDelay 750
 #define CHAR_WIDTH TINTTY_CHAR_WIDTH
 #define CHAR_HEIGHT TINTTY_CHAR_HEIGHT
 static char identifyTerminal[] = "\e[?1;0c\0";
 // exported variable for input logic
+// AQUI TREBALLES AMB SPRITE -- SPRITE NEW
 // @todo refactor
 bool tintty_cursor_key_mode_application;
 
@@ -51,8 +52,8 @@ const uint16_t ANSI_BOLD_COLORS[] = {
     TFT__BOLD_WHITE
 };
 
-const int16_t IDLE_CYCLE_MAX = 25000;
-const int16_t IDLE_CYCLE_ON = 12500;
+unsigned long nextCursorBlink;
+bool cursor_bar_shown;
 
 const int16_t TAB_SIZE = 4;
 
@@ -132,9 +133,9 @@ void _render(tintty_display *display) {
                 );
             }
         }
-
-        // update displayed scroll
-        display->set_vscroll((state.top_row * CHAR_HEIGHT) % display->screen_height); // @todo deal with overflow from multiplication
+        if (static_cast<unsigned long long>(state.top_row) * CHAR_HEIGHT > INT_MAX)giveErrorVisibility(false);
+        // update displayed scroll  
+        display->set_vscroll((state.top_row * CHAR_HEIGHT) % display->screen_height); // @todo deal with overflow from multiplication, visibilized
 
         // save rendered state
         rendered.top_row = state.top_row;
@@ -143,6 +144,7 @@ void _render(tintty_display *display) {
     // render character if needed
     if (state.out_char != 0) {
         const uint16_t x = state.out_char_col * CHAR_WIDTH;
+        if (static_cast<unsigned long long>(state.out_char_row) * CHAR_HEIGHT > UINT16_MAX)giveErrorVisibility(false);
         const uint16_t y = (state.out_char_row * CHAR_HEIGHT) % display->screen_height; // @todo deal with overflow from multiplication
         const uint16_t fg_TFT__color = state.bold ? ANSI_BOLD_COLORS[state.fg_ansi_color] : ANSI_COLORS[state.fg_ansi_color];
         const uint16_t bg_TFT__color = ANSI_COLORS[state.bg_ansi_color];
@@ -163,7 +165,7 @@ void _render(tintty_display *display) {
         if (state.out_clear_before > 0) {
             const int16_t line_before_chars = min(state.out_char_col, state.out_clear_before);
             const int16_t lines_before = (state.out_clear_before - line_before_chars) / display->screen_col_count;
-
+            if (static_cast<unsigned long long>(state.out_char_row) * CHAR_HEIGHT > UINT16_MAX) giveErrorVisibility(false);
             display->fill_rect(
                 (state.out_char_col - line_before_chars) * CHAR_WIDTH,
                 (state.out_char_row * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
@@ -171,8 +173,9 @@ void _render(tintty_display *display) {
                 CHAR_HEIGHT,
                 ANSI_COLORS[state.bg_ansi_color]
             );
-
             for (int16_t i = 0; i < lines_before; i += 1) {
+                if(static_cast<unsigned long long>(state.out_char_row - 1 - i) * CHAR_HEIGHT > UINT16_MAX)giveErrorVisibility(false);
+                if((state.out_char_row - 1 - i) < 0 )giveErrorVisibility(false);
                 display->fill_rect(
                     0,
                     ((state.out_char_row - 1 - i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
@@ -188,7 +191,7 @@ void _render(tintty_display *display) {
         if (state.out_clear_after > 0) {
             const int16_t line_after_chars = min(display->screen_col_count - 1 - state.out_char_col, state.out_clear_after);
             const int16_t lines_after = (state.out_clear_after - line_after_chars) / display->screen_col_count;
-
+                if (static_cast<unsigned long long>(state.out_char_row) * CHAR_HEIGHT > UINT16_MAX) giveErrorVisibility(false);
             display->fill_rect(
                 (state.out_char_col + 1) * CHAR_WIDTH,
                 (state.out_char_row * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
@@ -198,6 +201,7 @@ void _render(tintty_display *display) {
             );
 
             for (int16_t i = 0; i < lines_after; i += 1) {
+                if (static_cast<unsigned long long>(state.out_char_row + 1 + i) * CHAR_HEIGHT > UINT16_MAX)  giveErrorVisibility(false);
                 display->fill_rect(
                     0,
                     ((state.out_char_row + 1 + i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
@@ -223,12 +227,12 @@ void _render(tintty_display *display) {
         }
     }
 
-    // reflect new cursor bar render state
-    const bool cursor_bar_shown = (
-        !state.cursor_hidden &&
-        state.idle_cycle_count < IDLE_CYCLE_ON
-    );
+    if(millis() > nextCursorBlink){
+        cursor_bar_shown = !cursor_bar_shown;
+        nextCursorBlink = millis()+cursorBlinkDelay;
 
+    }
+    
     // clear existing rendered cursor bar if needed
     // @todo detect if it is already cleared during scroll
     if (rendered.cursor_col >= 0) {
@@ -237,6 +241,7 @@ void _render(tintty_display *display) {
             rendered.cursor_col != state.cursor_col ||
             rendered.cursor_row != state.cursor_row
         ) {
+            if (static_cast<unsigned long long>(rendered.cursor_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1 > UINT16_MAX) giveErrorVisibility(false);
             display->fill_rect(
                 rendered.cursor_col * CHAR_WIDTH,
                 (rendered.cursor_row * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
@@ -254,6 +259,7 @@ void _render(tintty_display *display) {
     // (sometimes right after clearing existing bar)
     if (rendered.cursor_col < 0) {
         if (cursor_bar_shown) {
+            if (static_cast<unsigned long long>(state.cursor_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1 > UINT16_MAX) giveErrorVisibility(false);
             display->fill_rect(
                 state.cursor_col * CHAR_WIDTH,
                 (state.cursor_row * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
@@ -748,9 +754,10 @@ void _main(
                 state.out_char_g4bank = 1;
                 break;
 
-            default:
+            //default:
+
                 // nothing, just animate cursor
-                state.idle_cycle_count = (state.idle_cycle_count + 1) % IDLE_CYCLE_MAX;
+                //state.idle_cycle_count = (state.idle_cycle_count + 1) % IDLE_CYCLE_MAX;
         }
     }
 
@@ -816,7 +823,7 @@ void tintty_idle(
     tintty_display *display
 ) {
     // animate cursor
-    state.idle_cycle_count = (state.idle_cycle_count + 1) % IDLE_CYCLE_MAX;
+    //state.idle_cycle_count = (state.idle_cycle_count + 1) % IDLE_CYCLE_MAX;
 
     // re-render
     _render(display);

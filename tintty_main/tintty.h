@@ -12,7 +12,7 @@ struct tintty_display {
     int16_t screen_width, screen_height;
     int16_t screen_col_count, screen_row_count; // width and height divided by char size
 
-    void (*fill_rect)(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
+    void (*fill_rect)(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);//tft.fillRect(x, y, w, h, color);
     void (*draw_pixels)(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pixels);
     void (*set_vscroll)(int16_t offset); // scroll offset for entire screen
 };
