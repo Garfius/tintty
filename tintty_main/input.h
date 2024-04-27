@@ -16,25 +16,19 @@ struct bufferManager {
 void     pushImage(int32_t x0, int32_t y0, int32_t w, int32_t h, const uint16_t *data);
 pushToSprite
 */
-
-#define LCD_CS A3
-#define LCD_CD A2
-#define LCD_WR A1
-#define LCD_RD A0
-// optional
-#define LCD_RESET A4
-extern TFT_eSPI tft;// AQUI TENS ELS DOS -- SPRITE NEW
-//extern Adafruit_TFTLCD tft;
-extern Stream *userTty;
 #define errorLed 6
-
-extern void giveErrorVisibility(bool init);
 // @todo move?
 #define ILI9341_WIDTH 240
 #define ILI9341_HEIGHT 320
-
 #define KEYBOARD_HEIGHT 92
+#define keyboardAutoRepeatMillis 750
 
+extern TFT_eSPI tft;// AQUI TENS ELS DOS -- SPRITE NEW
+extern TFT_eSprite spr;
+extern Stream *userTty;
+
+
+extern void giveErrorVisibility(bool init);
 void input_init();
 void input_idle();
 void checkDoCalibration();

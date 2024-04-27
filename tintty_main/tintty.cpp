@@ -30,6 +30,15 @@ static char identifyTerminal[] = "\e[?1;0c\0";
 // @todo refactor
 bool tintty_cursor_key_mode_application;
 
+fameBufferControl myCheesyFB{UINT16_MAX,0,UINT16_MAX,0, false,false,false,0};
+void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h){
+  //if((!myCheesyFB.hasChanges)&&(h != 1))
+  myCheesyFB.hasChanges = true;// canvi a 250
+  if(myCheesyFB.minX> x)myCheesyFB.minX = x;
+  if(myCheesyFB.maxX< (x+w))myCheesyFB.maxX = (x+w);
+  if(myCheesyFB.minY> y)myCheesyFB.minY = y;
+  if(myCheesyFB.maxY< (y+h))myCheesyFB.maxY = (y+h);  
+}
 const uint16_t ANSI_COLORS[] = {
     TFT__BLACK,
     TFT__RED,
@@ -91,7 +100,20 @@ struct tintty_rendered {
     int16_t cursor_col, cursor_row;
     int16_t top_row;
 } rendered;
+void eraseCursor(tintty_display *display){// 255
+    if (static_cast<unsigned long long>(rendered.cursor_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1 > UINT16_MAX) giveErrorVisibility(false);
+    //display->fill_rect(// canvi a 35
+    tft.fillRect(
+        rendered.cursor_col * CHAR_WIDTH,
+        (rendered.cursor_row * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
+        CHAR_WIDTH,
+        1,
+        ANSI_COLORS[state.bg_ansi_color] // @todo save the original background colour or even pixel values
+    );
 
+    // record the fact that cursor bar is not on screen
+    rendered.cursor_col = -1;
+}
 // @todo support negative cursor_row
 void _render(tintty_display *display) {
     // expose the cursor key mode state
@@ -149,15 +171,16 @@ void _render(tintty_display *display) {
         const uint16_t fg_TFT__color = state.bold ? ANSI_BOLD_COLORS[state.fg_ansi_color] : ANSI_COLORS[state.fg_ansi_color];
         const uint16_t bg_TFT__color = ANSI_COLORS[state.bg_ansi_color];
         // compute pixel data for pushing to TFT
-        uint16_t pushedData[4 * 6];
-        uint16_t *pushedDataHead = pushedData; // pointer to latest pixel in pushedData
-
-        const uint8_t char_set = state.g4bank_char_set[state.out_char_g4bank & 0x03]; // ensure 0-3 value
-        
-        tft.setCursor(x,y);
-        tft.setTextColor(fg_TFT__color,bg_TFT__color);
-        
-        tft.write(state.out_char);
+        spr.setCursor(x,y);
+        spr.setTextColor(fg_TFT__color,bg_TFT__color);
+        spr.write(state.out_char);
+        if(!myCheesyFB.hasChanges && cursor_bar_shown){
+            eraseCursor(display);
+            cursor_bar_shown = false;
+        }
+        assureRefreshArea( x,  y, TINTTY_CHAR_WIDTH, TINTTY_CHAR_HEIGHT);
+        //spr.drawChar((u_int16_t)state.out_char,x,y);
+        //myCheesyFB.hasChanges = true;
 
         
         // line-before
@@ -227,11 +250,11 @@ void _render(tintty_display *display) {
         }
     }
 
-    if(millis() > nextCursorBlink){
+    if(!myCheesyFB.hasChanges && (millis() > nextCursorBlink)){
         cursor_bar_shown = !cursor_bar_shown;
         nextCursorBlink = millis()+cursorBlinkDelay;
 
-    }
+    }//cal borra cursor
     
     // clear existing rendered cursor bar if needed
     // @todo detect if it is already cleared during scroll
@@ -241,17 +264,7 @@ void _render(tintty_display *display) {
             rendered.cursor_col != state.cursor_col ||
             rendered.cursor_row != state.cursor_row
         ) {
-            if (static_cast<unsigned long long>(rendered.cursor_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1 > UINT16_MAX) giveErrorVisibility(false);
-            display->fill_rect(
-                rendered.cursor_col * CHAR_WIDTH,
-                (rendered.cursor_row * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
-                CHAR_WIDTH,
-                1,
-                ANSI_COLORS[state.bg_ansi_color] // @todo save the original background colour or even pixel values
-            );
-
-            // record the fact that cursor bar is not on screen
-            rendered.cursor_col = -1;
+            eraseCursor(display);// 104
         }
     }
 
@@ -260,7 +273,7 @@ void _render(tintty_display *display) {
     if (rendered.cursor_col < 0) {
         if (cursor_bar_shown) {
             if (static_cast<unsigned long long>(state.cursor_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1 > UINT16_MAX) giveErrorVisibility(false);
-            display->fill_rect(
+            tft.fillRect(// aquest draw no ha de forçar redraw de tot
                 state.cursor_col * CHAR_WIDTH,
                 (state.cursor_row * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
                 CHAR_WIDTH,
@@ -819,12 +832,8 @@ void tintty_run(
     }
 }
 
-void tintty_idle(
-    tintty_display *display
-) {
+void tintty_idle(tintty_display *display) {
     // animate cursor
-    //state.idle_cycle_count = (state.idle_cycle_count + 1) % IDLE_CYCLE_MAX;
-
     // re-render
     _render(display);
 }

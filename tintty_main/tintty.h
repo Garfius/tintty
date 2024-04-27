@@ -4,6 +4,24 @@
 #define TINTTY_CHAR_WIDTH (5+1)
 #define TINTTY_CHAR_HEIGHT (7+1)
 
+/*enum tinttyProcessingState { 
+    idle, 
+    toAppBuffer,
+    toFrameBuffer,
+    toHwDisplay
+};*/
+struct fameBufferControl {
+    uint16_t minX,maxX,minY,maxY;
+    bool outputting;
+    bool hasChanges; // +
+    bool processingBlock;
+    unsigned int lastRemoteDataTime;// +
+  //  tinttyProcessingState doing;
+    
+};
+extern fameBufferControl myCheesyFB;
+extern void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h);
+
 extern bool tintty_cursor_key_mode_application;
 /**
  * Renderer callbacks.

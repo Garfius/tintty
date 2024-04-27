@@ -23,9 +23,6 @@
 #define TS_MAXX 911
 #define TS_MAXY 944
 */
-
-#define TOUCH_TRIGGER_COUNT 20
-
 #define KEYBOARD_GUTTER 4
 
 #define KEY_WIDTH 16
@@ -46,7 +43,6 @@
 #define KEYCODE_CAPS -21
 #define KEYCODE_CONTROL -22
 #define KEYCODE_ARROW_START -30 // from -30 to -27
-
 const int touchKeyRowCount = 5;
 
 struct touchKey {
@@ -347,7 +343,6 @@ void input_init(){
 
     _input_draw_all_keys();
 }
-#define keyboardAutoRepeatMillis 200
 uint16_t xpos,ypos;
 bool isTouching = false;
 unsigned int nextPush = 0;
@@ -363,9 +358,9 @@ void input_idle() {// drawFastHLine <--- cursor
                 _input_process_touch(xpos, ypos);// <-- empalme!!
             }
         }
-    }else{
+    }else if(isTouching){
+        _input_process_release();
         isTouching = false;
-        _input_process_release();// <-- empalme!!
     }
 }
 
@@ -383,6 +378,7 @@ uint16_t readUint16_t(int address) {
   value |= EEPROM.read(address + 1);
   return value;
 }
+// not optimized at all
 void giveErrorVisibility(bool init){
     if(init){// breakpoint here
         pinMode(errorLed,OUTPUT);
@@ -464,5 +460,6 @@ Stream *userTty;
 //Adafruit_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 
 TFT_eSPI tft = TFT_eSPI();
+TFT_eSprite spr= TFT_eSprite(&tft);  // Declare Sprite object "spr" with pointer to "tft" object
 // AQUI TENS ELS MONTES -- SPRITE NEW
 //MCUFRIEND_kbv tft;

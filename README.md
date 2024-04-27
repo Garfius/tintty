@@ -2,6 +2,12 @@
 
 Tiny console terminal implemented in Arduino C.
 
+Uses EEPROM to save calibaration data.
+
+To re-calibrate, keep touching screen on boot.
+
+Uses frameBuffer and circular buffer to process input data in background, refreshes when idle.
+
 ![using the Arduino-based console with touchscreen stylus](tintty-v2-usage-preview.jpg)
 
 ## Prerequisites
