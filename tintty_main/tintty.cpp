@@ -24,16 +24,14 @@
 #define cursorBlinkDelay 750
 #define CHAR_WIDTH TINTTY_CHAR_WIDTH
 #define CHAR_HEIGHT TINTTY_CHAR_HEIGHT
+
 static char identifyTerminal[] = "\e[?1;0c\0";
-// exported variable for input logic
-// AQUI TREBALLES AMB SPRITE -- SPRITE NEW
 // @todo refactor
 bool tintty_cursor_key_mode_application;
 
 fameBufferControl myCheesyFB{UINT16_MAX,0,UINT16_MAX,0, false,false,false,0};
 void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h){
-  //if((!myCheesyFB.hasChanges)&&(h != 1))
-  myCheesyFB.hasChanges = true;// canvi a 250
+  myCheesyFB.hasChanges = true;
   if(myCheesyFB.minX> x)myCheesyFB.minX = x;
   if(myCheesyFB.maxX< (x+w))myCheesyFB.maxX = (x+w);
   if(myCheesyFB.minY> y)myCheesyFB.minY = y;
@@ -102,15 +100,13 @@ struct tintty_rendered {
 } rendered;
 void eraseCursor(tintty_display *display){// 255
     if (static_cast<unsigned long long>(rendered.cursor_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1 > UINT16_MAX) giveErrorVisibility(false);
-    //display->fill_rect(// canvi a 35
     tft.fillRect(
         rendered.cursor_col * CHAR_WIDTH,
-        (rendered.cursor_row * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
+        ((rendered.cursor_row-rendered.top_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
         CHAR_WIDTH,
         1,
         ANSI_COLORS[state.bg_ansi_color] // @todo save the original background colour or even pixel values
     );
-
     // record the fact that cursor bar is not on screen
     rendered.cursor_col = -1;
 }
@@ -118,47 +114,13 @@ void eraseCursor(tintty_display *display){// 255
 void _render(tintty_display *display) {
     // expose the cursor key mode state
     tintty_cursor_key_mode_application = state.cursor_key_mode_application;
-
     // if scrolling, prepare the "recycled" screen area
     if (state.top_row != rendered.top_row) {
         // clear the new piece of screen to be recycled as blank space
         // @todo handle scroll-up
-        if (state.top_row > rendered.top_row) {
-            // pre-clear the lines at the bottom
-            // @todo always use black instead of current background colour?
-            // @todo deal with overflow from multiplication by CHAR_HEIGHT
-            int16_t old_bottom_y = rendered.top_row * CHAR_HEIGHT + display->screen_row_count * CHAR_HEIGHT; // bottom of text may not align with screen height
-            int16_t new_bottom_y = state.top_row * CHAR_HEIGHT + display->screen_height; // extend to bottom edge of new displayed area
-            int16_t clear_sbuf_bottom = new_bottom_y % display->screen_height;
-            int16_t clear_height = min(display->screen_height, new_bottom_y - old_bottom_y);
-            int16_t clear_sbuf_top = clear_sbuf_bottom - clear_height;
-
-            // if rectangle straddles the screen buffer top edge, render that slice at bottom edge
-            if (clear_sbuf_top < 0) {
-                display->fill_rect(
-                    0,
-                    clear_sbuf_top + display->screen_height,
-                    display->screen_width,
-                    -clear_sbuf_top,
-                    ANSI_COLORS[state.bg_ansi_color]
-                );
-            }
-
-            // if rectangle is not entirely above top edge, render the normal slice
-            if (clear_sbuf_bottom > 0) {
-                display->fill_rect(
-                    0,
-                    max(0, clear_sbuf_top),
-                    display->screen_width,
-                    clear_sbuf_bottom - max(0, clear_sbuf_top),
-                    ANSI_COLORS[state.bg_ansi_color]
-                );
-            }
-        }
         if (static_cast<unsigned long long>(state.top_row) * CHAR_HEIGHT > INT_MAX)giveErrorVisibility(false);
         // update displayed scroll  
-        display->set_vscroll((state.top_row * CHAR_HEIGHT) % display->screen_height); // @todo deal with overflow from multiplication, visibilized
-
+        display->set_vscroll(((state.top_row-rendered.top_row) * CHAR_HEIGHT) % display->screen_height); // @todo deal with overflow from multiplication, visibilized
         // save rendered state
         rendered.top_row = state.top_row;
     }
@@ -167,10 +129,11 @@ void _render(tintty_display *display) {
     if (state.out_char != 0) {
         const uint16_t x = state.out_char_col * CHAR_WIDTH;
         if (static_cast<unsigned long long>(state.out_char_row) * CHAR_HEIGHT > UINT16_MAX)giveErrorVisibility(false);
-        const uint16_t y = (state.out_char_row * CHAR_HEIGHT) % display->screen_height; // @todo deal with overflow from multiplication
+        const uint16_t y = ((state.out_char_row-rendered.top_row) * CHAR_HEIGHT) % display->screen_height; // @todo deal with overflow from multiplication
         const uint16_t fg_TFT__color = state.bold ? ANSI_BOLD_COLORS[state.fg_ansi_color] : ANSI_COLORS[state.fg_ansi_color];
         const uint16_t bg_TFT__color = ANSI_COLORS[state.bg_ansi_color];
-        // compute pixel data for pushing to TFT
+        
+        // write to sprite buffer
         spr.setCursor(x,y);
         spr.setTextColor(fg_TFT__color,bg_TFT__color);
         spr.write(state.out_char);
@@ -179,9 +142,6 @@ void _render(tintty_display *display) {
             cursor_bar_shown = false;
         }
         assureRefreshArea( x,  y, TINTTY_CHAR_WIDTH, TINTTY_CHAR_HEIGHT);
-        //spr.drawChar((u_int16_t)state.out_char,x,y);
-        //myCheesyFB.hasChanges = true;
-
         
         // line-before
         // @todo detect when straddling edge of buffer
@@ -191,7 +151,7 @@ void _render(tintty_display *display) {
             if (static_cast<unsigned long long>(state.out_char_row) * CHAR_HEIGHT > UINT16_MAX) giveErrorVisibility(false);
             display->fill_rect(
                 (state.out_char_col - line_before_chars) * CHAR_WIDTH,
-                (state.out_char_row * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
+                ((state.out_char_row-rendered.top_row) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
                 line_before_chars * CHAR_WIDTH,
                 CHAR_HEIGHT,
                 ANSI_COLORS[state.bg_ansi_color]
@@ -201,7 +161,7 @@ void _render(tintty_display *display) {
                 if((state.out_char_row - 1 - i) < 0 )giveErrorVisibility(false);
                 display->fill_rect(
                     0,
-                    ((state.out_char_row - 1 - i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
+                    (((state.out_char_row-rendered.top_row) - 1 - i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
                     display->screen_width,
                     CHAR_HEIGHT,
                     ANSI_COLORS[state.bg_ansi_color]
@@ -217,7 +177,7 @@ void _render(tintty_display *display) {
                 if (static_cast<unsigned long long>(state.out_char_row) * CHAR_HEIGHT > UINT16_MAX) giveErrorVisibility(false);
             display->fill_rect(
                 (state.out_char_col + 1) * CHAR_WIDTH,
-                (state.out_char_row * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
+                ((state.out_char_row-rendered.top_row) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
                 line_after_chars * CHAR_WIDTH,
                 CHAR_HEIGHT,
                 ANSI_COLORS[state.bg_ansi_color]
@@ -227,7 +187,7 @@ void _render(tintty_display *display) {
                 if (static_cast<unsigned long long>(state.out_char_row + 1 + i) * CHAR_HEIGHT > UINT16_MAX)  giveErrorVisibility(false);
                 display->fill_rect(
                     0,
-                    ((state.out_char_row + 1 + i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
+                    (((state.out_char_row-rendered.top_row) + 1 + i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
                     display->screen_width,
                     CHAR_HEIGHT,
                     ANSI_COLORS[state.bg_ansi_color]
@@ -239,7 +199,6 @@ void _render(tintty_display *display) {
         state.out_char = 0;
         state.out_clear_before = 0;
         state.out_clear_after = 0;
-
         // the char draw may overpaint the cursor, in which case
         // mark it for repaint
         if (
@@ -275,12 +234,11 @@ void _render(tintty_display *display) {
             if (static_cast<unsigned long long>(state.cursor_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1 > UINT16_MAX) giveErrorVisibility(false);
             tft.fillRect(// aquest draw no ha de forçar redraw de tot
                 state.cursor_col * CHAR_WIDTH,
-                (state.cursor_row * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
+                ((state.cursor_row-rendered.top_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
                 CHAR_WIDTH,
                 1,
                 state.bold ? ANSI_BOLD_COLORS[state.fg_ansi_color] : ANSI_COLORS[state.fg_ansi_color]
             );
-
             // save new rendered state
             rendered.cursor_col = state.cursor_col;
             rendered.cursor_row = state.cursor_row;

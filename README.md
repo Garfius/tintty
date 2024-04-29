@@ -16,7 +16,7 @@ Uses frameBuffer and circular buffer to process input data in background, refres
 - rp2040 and ili9488
 - https://github.com/earlephilhower/platform-raspberrypi
 
-## pins:
+## pins for ILI9488:
 
 - t_irq - GP6 - not used 
 - t_out - TFT_MISO  16
@@ -29,6 +29,12 @@ Uses frameBuffer and circular buffer to process input data in background, refres
 
 - Choose Serial console Stream device at setup()
 
+## TO DO
+
+- Adjust screen size to ILI9488
+- Test on the original ILI9341
+- Port back to AVR
+ 
 ## Development
 
 Testing on Windows is easy to do from a Vagrant VM running Linux. Arduino usually exposes the USB connection as serial COM3 port, so the VM is configured to forward the COM3 port to `/dev/ttyS0` inside the Linux environment.

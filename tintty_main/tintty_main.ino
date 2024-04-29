@@ -12,39 +12,17 @@
  * and modified by Peter Scargill.
  * 
  * to-do:
- * -use sprite as frameBuffer, and update only  changed area
- * -go back to dma somehow
- * -cursor blink
- * 
+ *  Adjust screen size to ILI9488
+ *  Test on the original ILI9341
+ *  Port back to AVR
+ *  Scroll back
+ *  
  */
-/*
-struct fameBufferControl {
-    uint16_t minX,maxX,minY,maxY;
-    bool outputting;
-    bool hasChanges;
-    bool refreshNeeded;
-    unsigned int refreshTime;
-};
-*/
-// buffer size and beheaviour
-// #define SERIAL_RX_BUFFER_SIZE 255
-
-#define snappyMillisLimit 75// idle refresh time
+#define snappyMillisLimit 150// idle refresh time
 #define LOCAL_BUFFER_SIZE 800
 #define bufferProcessingBlockSize 32
-
-/*
-#define bufferLimitNoProcess 250
-#define bufferLimitUserEcho 50
-#define bufferLimitTtyBusy 500
-#define multicore false
-#define multicoreRefreshTime 700*/
 static char myCharBuffer[LOCAL_BUFFER_SIZE];// whole ram must be buffer, lol
-//unsigned int lastRefresh,lastBufferEmpty,lastUserInput;
-char charTmp;
-
-//enum ttyStateList {snappy,waiting4FufferEmpty,busy};
-//ttyStateList ttyState = snappy;
+char charTmp; // 4 debug
 struct tintty_display ili9341_display = {// from serial to display from ~236 tintty_idle(&ili9341_display)
   ILI9341_WIDTH,// x
   (ILI9341_HEIGHT - KEYBOARD_HEIGHT), // y 
@@ -63,8 +41,8 @@ struct tintty_display ili9341_display = {// from serial to display from ~236 tin
   },
 
   [](int16_t offset){//set_vscroll
-    //tft.vertScroll(0, (ILI9341_HEIGHT - KEYBOARD_HEIGHT), offset);
-    spr.fillRect(0, 0, ILI9341_WIDTH,  (ILI9341_HEIGHT - KEYBOARD_HEIGHT), TFT_BLACK);
+    if(offset!=0)spr.scroll(0,-offset); // scroll stext 0 pixels left/right, 16 up
+    assureRefreshArea( 0,  0, ILI9341_WIDTH, (ILI9341_HEIGHT - KEYBOARD_HEIGHT));
   }
 };
 // buffer to test various input sequences
@@ -123,15 +101,9 @@ void bufferAtoB(){ // 227
     myCheesyFB.lastRemoteDataTime = millis();
     charTmp = (char)userTty->read();
     buffer.addChar(charTmp);
-    //if(millis() > (myCheesyFB.lastRemoteDataTime+snappyMillisLimit))break;// ja has esperat snappy desde ultim byte tens 1 core
   }
   myCheesyFB.processingBlock = buffer.size() > bufferProcessingBlockSize;
-  // snappyMillisLimit !!!
-  // refrescar-> rebut_algo&&snappy, waiting4FufferEmpty&&(buffer.size()==0), busy&&(buffer.size()==0), multicore&&(multicoreRefreshTime lastRefresh)
-  // que qualsevol daquests dispari un refresh en snappyMillisLimit
-  //if (serialEventRun) serialEventRun(); 
 }
-
 /**
  * NOT optimized AT ALL! just debugged
 */
@@ -140,13 +112,11 @@ void tft_espi_calibrate_touch(){
   uint8_t *calibrationDataBytePoint = (uint8_t *)calibrationData;
   uint8_t calDataOK = 0;
   uint8_t calDataTst = 0;
-  //-------------------eeprom inici
-  
+  //-------------------eeprom integrity check 
   calDataOK = EEPROM.read(0);
   calDataTst = ~EEPROM.read(1);
   calDataOK = calDataOK == calDataTst;
   int eePos = 2;
-  
   if (calDataOK && (!tft.getTouch(&calibrationData[5], &calibrationData[6]))) {
     // calibration data valid & NO TSOLICITED
     for(int i = 0; i < 10; i++) {
@@ -185,30 +155,27 @@ void setup() {
   userTty = &Serial1;
   //-----------------------
   giveErrorVisibility(true);
-  //myCheesyFB.doing = tinttyProcessingState::idle;
   EEPROM.begin(255);
   tft.begin();
-  // AQUI TENS inicialitzacions -- SPRITE NEW 
-  // check nullptr
-  // ubicar declaracions de mides
   tft.setFreeFont(GLCD);
   tft.setTextSize(1);
   spr.setFreeFont(GLCD);
   spr.setTextSize(1);
   if(spr.createSprite(ILI9341_WIDTH, (ILI9341_HEIGHT - KEYBOARD_HEIGHT)) == nullptr)giveErrorVisibility(false);
   spr.fillSprite(TFT_BLACK);
-  
+  tft.setCursor(0,0);
+/*  size_t free_heap_size = xPortGetFreeHeapSize();
+  tft.printf("Mem: %u", (unsigned int)free_heap_size);
+  delay(500);*/
   tft_espi_calibrate_touch();
   input_init();
-
-  tintty_run(// de serial cap a la pantalla, pots desactivar teclat -- @todo
+  tintty_run(// serial to Screen
     [](){
       // peek idle loop, non blocking?
       while (true) {
         bufferAtoB();
         if(myCheesyFB.processingBlock){
           if(buffer.head != buffer.tail){// hi ha quelcom a fer?
-              //userTty->write(buffer.myCharBuffer[buffer.head]);
               return myCharBuffer[buffer.head];
           }else{
             myCheesyFB.processingBlock= false;
@@ -226,10 +193,9 @@ void setup() {
     [](){
       while(true) {// read char
         bufferAtoB();
-        tintty_idle(&ili9341_display);// no ha de fer cursor
+        tintty_idle(&ili9341_display);
         if(myCheesyFB.processingBlock){
           if(buffer.head != buffer.tail){// hi ha quelcom a fer?
-              //userTty->write(buffer.myCharBuffer[buffer.head]);
               return buffer.consumeChar();
           }else{
             myCheesyFB.processingBlock= false;
@@ -252,6 +218,5 @@ void setup() {
 }
 
 void loop() {
-}
-//the variables memory is recovered automatically at the end of the loop.
+}//the variables memory is recovered automatically at the end of the loop.
 

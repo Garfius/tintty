@@ -4,20 +4,15 @@
 #define TINTTY_CHAR_WIDTH (5+1)
 #define TINTTY_CHAR_HEIGHT (7+1)
 
-/*enum tinttyProcessingState { 
-    idle, 
-    toAppBuffer,
-    toFrameBuffer,
-    toHwDisplay
-};*/
+/**
+ * Frame buffer(TFT_eSprite) state control
+*/
 struct fameBufferControl {
     uint16_t minX,maxX,minY,maxY;
     bool outputting;
     bool hasChanges; // +
     bool processingBlock;
     unsigned int lastRemoteDataTime;// +
-  //  tinttyProcessingState doing;
-    
 };
 extern fameBufferControl myCheesyFB;
 extern void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h);
@@ -34,7 +29,6 @@ struct tintty_display {
     void (*draw_pixels)(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pixels);
     void (*set_vscroll)(int16_t offset); // scroll offset for entire screen
 };
-
 /**
  * Main entry point.
  * Peek/read callbacks are expected to block until input is available;
