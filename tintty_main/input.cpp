@@ -346,38 +346,24 @@ void input_init(){
 uint16_t xpos,ypos;
 bool isTouching = false;
 unsigned int nextPush = 0;
-void input_idle() {// drawFastHLine <--- cursor
+void input_idle() {
     if (tft.getTouch(&xpos, &ypos)) {
         if(!isTouching){
             nextPush = millis()+keyboardAutoRepeatMillis;
             isTouching = true;
-            _input_process_touch(xpos, ypos);// <-- empalme!!
+            _input_process_touch(xpos, ypos);
         }else{
             if(millis() > nextPush){
-                _input_process_release();// <-- empalme!!
-                _input_process_touch(xpos, ypos);// <-- empalme!!
+                _input_process_release();
+                _input_process_touch(xpos, ypos);
             }
         }
-    }else if(isTouching){
+    }else if(isTouching){// si no esta tocant, netejar
         _input_process_release();
         isTouching = false;
     }
 }
 
-void writeUint16_t(int address, uint16_t value) {
-  // Write the high byte (most significant byte) at the address
-  EEPROM.write(address, value >> 8);
-  // Write the low byte (least significant byte) at the next address
-  EEPROM.write(address + 1, value & 0xFF);
-}
-
-uint16_t readUint16_t(int address) {
-  // Read the high byte (most significant byte) from the address
-  uint16_t value = EEPROM.read(address) << 8;
-  // Read the low byte (least significant byte) from the next address
-  value |= EEPROM.read(address + 1);
-  return value;
-}
 // not optimized at all
 void giveErrorVisibility(bool init){
     if(init){// breakpoint here
@@ -391,75 +377,8 @@ void giveErrorVisibility(bool init){
         digitalWrite(errorLed,HIGH);
     }
 }
-/**
- * int TS_LEFT,TS_RT,TS_TOP,TS_BOT;
-void checkDoCalibration(){
-    int16_t pointsX[4];
-    int16_t pointsY[4];
-    tp = ts.getPoint();
-    if(!(tp.z > MINPRESSURE && tp.z < MAXPRESSURE)){// do calibrate    
-        // load from eeprom
-        return;
-    }
-    userTty->println("calibrate");
 
-    bool pointDone = false;
-    tft.fillCircle(20, 20,3, 0xF800);
-    while(!pointDone){
-        tp = ts.getPoint();
-        if(tp.z > MINPRESSURE && tp.z < MAXPRESSURE){// do calibrate
-            pointsX[0] = tp.x;
-            pointsY[0] = tp.y;
-            pointDone = true;
-        }
-    }
-    pointDone = false;
-    tft.fillCircle(220, 20,3, 0xF800);
-    while(!pointDone){
-        tp = ts.getPoint();
-        if(tp.z > MINPRESSURE && tp.z < MAXPRESSURE){// do calibrate
-            pointsX[1] = tp.x;
-            pointsY[1] = tp.y;
-            pointDone = true;
-        }
-    }
-    pointDone = false;
-    tft.fillCircle(220, 300,3, 0xF800);
-    while(!pointDone){
-        tp = ts.getPoint();
-        if(tp.z > MINPRESSURE && tp.z < MAXPRESSURE){// do calibrate
-            pointsX[2] = tp.x;
-            pointsY[2] = tp.y;
-            pointDone = true;
-        }
-    }
-    pointDone = false;
-    tft.fillCircle(20, 300, 3, 0xF800);
-    while(!pointDone){
-        tp = ts.getPoint();
-        if(tp.z > MINPRESSURE && tp.z < MAXPRESSURE){// do calibrate
-            pointsX[3] = tp.x;
-            pointsY[3] = tp.y;
-            pointDone = true;
-        }
-    }
-
-    // maxims son a TS_RT i TS_BOT
-    for(int i=0;i< 4;i++){
-        userTty->print("i=");
-        userTty->println(i);
-        userTty->print("x=");
-        userTty->println(pointsX[i]);
-        userTty->print("y=");
-        userTty->println(pointsX[i]);
-    }
-
-}
-*/
 Stream *userTty;
-//Adafruit_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr= TFT_eSprite(&tft);  // Declare Sprite object "spr" with pointer to "tft" object
-// AQUI TENS ELS MONTES -- SPRITE NEW
-//MCUFRIEND_kbv tft;

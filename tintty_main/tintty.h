@@ -48,3 +48,22 @@ void tintty_run(
 void tintty_idle(
     tintty_display *display
 );
+//extern uint16_t tinTty_4bit_palette[];
+static const uint16_t tinTty_4bit_palette[] PROGMEM = {
+  TFT_BLACK,    //  0  ^-
+  TFT_RED,      //  1  |-
+  TFT_GREEN,    //  2  |-
+  TFT_YELLOW,   //  3  |-
+  TFT_BLUE,     //  4  |-
+  TFT_MAGENTA,  //  5  |-
+  TFT_CYAN,     //  6  |-
+  TFT_WHITE,    //  7  |-
+  TFT_DARKGREY, //  8  |Bold?
+  TFT_PURPLE,   //  9  |Bold?
+  TFT_NAVY,     // 10  |Bold?
+  TFT_BROWN,    // 11  |Bold?
+  TFT_ORANGE,   // 12  |Bold?
+  TFT_MAROON,   // 13  |Bold?
+  TFT_DARKGREEN,// 14  |Bold?
+  TFT_PINK      // 15  |Bold?
+};

@@ -160,7 +160,9 @@ void setup() {
   tft.setFreeFont(GLCD);
   tft.setTextSize(1);
   spr.setFreeFont(GLCD);
+  spr.setColorDepth(4);
   spr.setTextSize(1);
+  spr.createPalette(tinTty_4bit_palette);
   if(spr.createSprite(ILI9341_WIDTH, (ILI9341_HEIGHT - KEYBOARD_HEIGHT)) == nullptr)giveErrorVisibility(false);
   spr.fillSprite(TFT_BLACK);
   tft.setCursor(0,0);
