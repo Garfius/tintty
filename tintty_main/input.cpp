@@ -4,41 +4,12 @@
 #include "tintty.h"
 #include "input.h"
 
-// calibrated settings from TouchScreen_Calibr_native
-//const int XP=6,XM=A2,YP=A1,YM=7; //240x320 ID=0x9341 leonardo
-/*
-// using stock MCUFRIEND 2.4inch shield
-
-// AQUI TREBALLES EN REAL -- SPRITE NEW
-#define MINPRESSURE 10
-#define MAXPRESSURE 1000
-
-#define YP A1  // must be an analog pin, use "An" notation!
-#define YM 7   // can be a digital pin
-#define XM A2  // must be an analog pin, use "An" notation!
-#define XP 6   // can be a digital pin
-
-#define TS_MINX 203
-#define TS_MINY 213
-#define TS_MAXX 911
-#define TS_MAXY 944
-*/
-#define KEYBOARD_GUTTER 4
-
-#define KEY_WIDTH 16
-#define KEY_HEIGHT 16
-#define KEY_GUTTER 1
-
-#define KEY_ROW_A_Y (ILI9341_HEIGHT - KEYBOARD_HEIGHT + KEYBOARD_GUTTER)
-
 #define KEY_ROW_A_X(index) (0 + (KEY_WIDTH + KEY_GUTTER) * index)
 #define KEY_ROW_B_X(index) (20 + (KEY_WIDTH + KEY_GUTTER) * index)
 #define KEY_ROW_C_X(index) (24 + (KEY_WIDTH + KEY_GUTTER) * index)
 #define KEY_ROW_D_X(index) (32 + (KEY_WIDTH + KEY_GUTTER) * index)
 #define ARROW_KEY_X(index) (ILI9341_WIDTH - (KEY_WIDTH + KEY_GUTTER) * (4 - index))
 
-
-//------------------ memory leak, mapped to char
 #define KEYCODE_SHIFT -20
 #define KEYCODE_CAPS -21
 #define KEYCODE_CONTROL -22
@@ -53,7 +24,6 @@ struct touchKey {
 
 struct touchKeyRow {
     int16_t y;
-
     int keyCount;
     struct touchKey keys[14];
 } touchKeyRows[5] = {

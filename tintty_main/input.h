@@ -4,13 +4,17 @@
 #define errorLed 6
 
 // @todo move?
-/*
-#define ILI9341_WIDTH 240
-#define ILI9341_HEIGHT 320
-*/
 #define ILI9341_WIDTH TFT_WIDTH
 #define ILI9341_HEIGHT TFT_HEIGHT
-#define KEYBOARD_HEIGHT 92
+
+#define KEYBOARD_GUTTER 4
+
+#define KEY_WIDTH (16+5)
+#define KEY_HEIGHT (16+3)
+#define KEY_GUTTER 1
+#define KEYBOARD_HEIGHT ((6 * KEY_GUTTER)+(5*KEY_HEIGHT)+KEYBOARD_GUTTER)
+
+#define KEY_ROW_A_Y (ILI9341_HEIGHT - KEYBOARD_HEIGHT + KEYBOARD_GUTTER)//480-(6 * 1)+(5*(16+3))+4 +4
 
 #define keyboardAutoRepeatMillis 750
 #define keyboardReleaseMillis 750

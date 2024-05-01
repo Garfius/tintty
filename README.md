@@ -31,7 +31,6 @@ Uses frameBuffer and circular buffer to process input data in background, refres
 
 ## TO DO
 
-- Adjust screen size to ILI9488
 - Test on the original ILI9341
 - Port back to AVR
  
