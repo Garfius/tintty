@@ -19,9 +19,9 @@
  *  
  */
 #define snappyMillisLimit 150// idle refresh time
-#define LOCAL_BUFFER_SIZE 800
-#define bufferProcessingBlockSize 32
-static char myCharBuffer[LOCAL_BUFFER_SIZE];// whole ram must be buffer, lol
+#define LOCAL_BUFFER_SIZE 128
+#define bufferProcessingBlockSize 16
+volatile static char myCharBuffer[LOCAL_BUFFER_SIZE];// whole ram must be buffer, lol
 char charTmp; // 4 debug
 struct tintty_display ili9341_display = {// from serial to display from ~236 tintty_idle(&ili9341_display)
   ILI9341_WIDTH,// x
@@ -41,8 +41,7 @@ struct tintty_display ili9341_display = {// from serial to display from ~236 tin
   },
 
   [](int16_t offset){//set_vscroll
-    if(offset!=0)spr.scroll(0,-offset); // scroll stext 0 pixels left/right, 16 up
-    assureRefreshArea( 0,  0, ILI9341_WIDTH, (ILI9341_HEIGHT - KEYBOARD_HEIGHT));
+    
   }
 };
 // buffer to test various input sequences
@@ -96,13 +95,13 @@ CharBuffer buffer;
  * Aqui llegeix de entrada fins[midaBlock]
 */
 void bufferAtoB(){ // 227
-  if (serialEventRun) serialEventRun(); 
-  while(userTty->available() > 0) {
-    myCheesyFB.lastRemoteDataTime = millis();
-    charTmp = (char)userTty->read();
-    buffer.addChar(charTmp);
+  if((userTty->available() > 0)){
+    while(userTty->available() > 0) {
+      charTmp = (char)userTty->read();
+      buffer.addChar(charTmp);
+    }
+    if(buffer.head != buffer.tail)myCheesyFB.lastRemoteDataTime = millis();
   }
-  myCheesyFB.processingBlock = buffer.size() > bufferProcessingBlockSize;
 }
 /**
  * NOT optimized AT ALL! just debugged
@@ -151,7 +150,10 @@ void tft_espi_calibrate_touch(){
 }
 void setup() {
   //-----------------------Serial port setup
-  Serial1.begin(9600);
+  pinMode(23,OUTPUT);// millora 3.3v GPIO23 controls the RT6150 PS (Power Save) pin. When PS is low (the default on Pico) 
+  digitalWrite(23, HIGH);
+  Serial1.begin(9600,SERIAL_8N1);
+  gpio_pull_up(2);
   userTty = &Serial1;
   //-----------------------
   giveErrorVisibility(true);
@@ -161,14 +163,22 @@ void setup() {
   tft.setTextSize(1);
   spr.setFreeFont(GLCD);
   spr.setColorDepth(4);
+  if(spr.createSprite(ILI9341_WIDTH, (ILI9341_HEIGHT - KEYBOARD_HEIGHT)) == nullptr)giveErrorVisibility(false);
   spr.setTextSize(1);
   spr.createPalette(tinTty_4bit_palette);
-  if(spr.createSprite(ILI9341_WIDTH, (ILI9341_HEIGHT - KEYBOARD_HEIGHT)) == nullptr)giveErrorVisibility(false);
-  spr.fillSprite(TFT_BLACK);
-  tft.setCursor(0,0);
-/*  size_t free_heap_size = xPortGetFreeHeapSize();
+  spr.fillSprite(0);
+/*
+  // --------test debug
+  spr.setCursor(0,0);
+  spr.setTextColor(0,7);
+  spr.println("test1");  
+  spr.setTextColor(2,6);
+  spr.println("test2");
+  spr.pushSprite(0,0);
+  size_t free_heap_size = xPortGetFreeHeapSize();
   tft.printf("Mem: %u", (unsigned int)free_heap_size);
-  delay(500);*/
+  delay(500);
+  */
   tft_espi_calibrate_touch();
   input_init();
   tintty_run(// serial to Screen
@@ -176,39 +186,29 @@ void setup() {
       // peek idle loop, non blocking?
       while (true) {
         bufferAtoB();
-        if(myCheesyFB.processingBlock){
-          if(buffer.head != buffer.tail){// hi ha quelcom a fer?
-              return myCharBuffer[buffer.head];
-          }else{
-            myCheesyFB.processingBlock= false;
-          }
-        }else{
+        
           if(buffer.head != buffer.tail)return myCharBuffer[buffer.head];
           tintty_idle(&ili9341_display);
-          if (userTty->available() == 0) {
+          if (myCheesyFB.hasChanges) {
             refreshDisplayIfNeeded();
+          }else{
             input_idle();
           }
-        }
+        
       }
     },
     [](){
       while(true) {// read char
         bufferAtoB();
         tintty_idle(&ili9341_display);
-        if(myCheesyFB.processingBlock){
-          if(buffer.head != buffer.tail){// hi ha quelcom a fer?
-              return buffer.consumeChar();
-          }else{
-            myCheesyFB.processingBlock= false;
-          }
-        }else{
+        
           if(buffer.head != buffer.tail)return buffer.consumeChar();
-          if (userTty->available() == 0) {
+          if (myCheesyFB.hasChanges) {
             refreshDisplayIfNeeded();
+          }else{
             input_idle();
           }
-        }
+        
       }
     },//send char
     [](char ch){

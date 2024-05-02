@@ -1,27 +1,9 @@
 #include <Adafruit_GFX.h>
 #include <TFT_eSPI.h>
-/*
-#define TFT__BLACK   0x0000
-#define TFT__BLUE    0x0014
-#define TFT__RED     0xA000
-#define TFT__GREEN   0x0500
-#define TFT__CYAN    0x0514
-#define TFT__MAGENTA 0xA014
-#define TFT__YELLOW  0xA500
-#define TFT__WHITE   0xA514
-
-#define TFT__BOLD_BLACK   0x8410
-#define TFT__BOLD_BLUE    0x001F
-#define TFT__BOLD_RED     0xF800
-#define TFT__BOLD_GREEN   0x07E0
-#define TFT__BOLD_CYAN    0x07FF
-#define TFT__BOLD_MAGENTA 0xF81F
-#define TFT__BOLD_YELLOW  0xFFE0
-#define TFT__BOLD_WHITE   0xFFFF
-*/
 #include "tintty.h"
 #include "font454.h"
-#define cursorBlinkDelay 750
+
+#define cursorBlinkDelay 650
 #define CHAR_WIDTH TINTTY_CHAR_WIDTH
 #define CHAR_HEIGHT TINTTY_CHAR_HEIGHT
 
@@ -98,8 +80,11 @@ void _render(tintty_display *display) {
         // clear the new piece of screen to be recycled as blank space
         // @todo handle scroll-up
         if (static_cast<unsigned long long>(state.top_row) * CHAR_HEIGHT > INT_MAX)giveErrorVisibility(false);
+        
+        spr.scroll(0,-((state.top_row-rendered.top_row) * CHAR_HEIGHT) % display->screen_height); // scroll stext 0 pixels left/right, 16 up
+        assureRefreshArea( 0,  0, ILI9341_WIDTH, (ILI9341_HEIGHT - KEYBOARD_HEIGHT));
         // update displayed scroll  
-        display->set_vscroll(((state.top_row-rendered.top_row) * CHAR_HEIGHT) % display->screen_height); // @todo deal with overflow from multiplication, visibilized
+        //display->set_vscroll(); // @todo deal with overflow from multiplication, visibilized
         // save rendered state
         rendered.top_row = state.top_row;
     }
@@ -109,12 +94,11 @@ void _render(tintty_display *display) {
         const uint16_t x = state.out_char_col * CHAR_WIDTH;
         if (static_cast<unsigned long long>(state.out_char_row) * CHAR_HEIGHT > UINT16_MAX)giveErrorVisibility(false);
         const uint16_t y = ((state.out_char_row-rendered.top_row) * CHAR_HEIGHT) % display->screen_height; // @todo deal with overflow from multiplication
-        const uint16_t fg_TFT__color = state.bold ? tinTty_4bit_palette[state.fg_ansi_color+8] : tinTty_4bit_palette[state.fg_ansi_color];
-        const uint16_t bg_TFT__color = tinTty_4bit_palette[state.bg_ansi_color];
+        const uint16_t fg_TFT__color = state.bold ? (state.fg_ansi_color+8) : state.fg_ansi_color;
         
         // write to sprite buffer
         spr.setCursor(x,y);
-        spr.setTextColor(fg_TFT__color,bg_TFT__color);
+        spr.setTextColor(fg_TFT__color,state.bg_ansi_color);
         spr.write(state.out_char);
         if(!myCheesyFB.hasChanges && cursor_bar_shown){
             eraseCursor(display);
@@ -133,7 +117,7 @@ void _render(tintty_display *display) {
                 ((state.out_char_row-rendered.top_row) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
                 line_before_chars * CHAR_WIDTH,
                 CHAR_HEIGHT,
-                tinTty_4bit_palette[state.bg_ansi_color]
+                state.bg_ansi_color
             );
             for (int16_t i = 0; i < lines_before; i += 1) {
                 if(static_cast<unsigned long long>(state.out_char_row - 1 - i) * CHAR_HEIGHT > UINT16_MAX)giveErrorVisibility(false);
@@ -143,7 +127,7 @@ void _render(tintty_display *display) {
                     (((state.out_char_row-rendered.top_row) - 1 - i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
                     display->screen_width,
                     CHAR_HEIGHT,
-                    tinTty_4bit_palette[state.bg_ansi_color]
+                    state.bg_ansi_color
                 );
             }
         }
@@ -159,7 +143,7 @@ void _render(tintty_display *display) {
                 ((state.out_char_row-rendered.top_row) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
                 line_after_chars * CHAR_WIDTH,
                 CHAR_HEIGHT,
-                tinTty_4bit_palette[state.bg_ansi_color]
+                state.bg_ansi_color
             );
 
             for (int16_t i = 0; i < lines_after; i += 1) {
@@ -169,7 +153,7 @@ void _render(tintty_display *display) {
                     (((state.out_char_row-rendered.top_row) + 1 + i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
                     display->screen_width,
                     CHAR_HEIGHT,
-                    tinTty_4bit_palette[state.bg_ansi_color]
+                    state.bg_ansi_color
                 );
             }
         }
@@ -750,11 +734,9 @@ void tintty_run(
     rendered.cursor_col = -1;
     rendered.cursor_row = -1;
 
+    spr.setTextColor(0,7);
     // clear screen
-    display->fill_rect(0, 0, display->screen_width, display->screen_height, TFT_BLACK);
-
-    // reset TFT scroll to default
-    display->set_vscroll(0);
+    display->fill_rect(0, 0, display->screen_width, display->screen_height, 0);
 
     // initial render
     _render(display);
