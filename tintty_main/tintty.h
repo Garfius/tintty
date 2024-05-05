@@ -1,7 +1,7 @@
 
 #include "Arduino.h"
 #include "input.h"
-#define TINTTY_CHAR_WIDTH (5+1)
+#define TINTTY_CHAR_WIDTH (5+1)// see .setFreeFont(GLCD); at main
 #define TINTTY_CHAR_HEIGHT (7+1)
 
 /**
@@ -9,10 +9,9 @@
 */
 struct fameBufferControl {
     uint16_t minX,maxX,minY,maxY;
-    bool outputting;
-    bool hasChanges; // +
-    bool processingBlock;
-    unsigned int lastRemoteDataTime;// +
+    volatile bool outputting;
+    volatile bool hasChanges;
+    volatile unsigned int lastRemoteDataTime;
 };
 extern fameBufferControl myCheesyFB;
 extern void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h);
@@ -48,8 +47,8 @@ void tintty_run(
 void tintty_idle(
     tintty_display *display
 );
-//extern uint16_t tinTty_4bit_palette[];
-static const uint16_t tinTty_4bit_palette[] PROGMEM = {
+
+static const uint16_t myPalette[] PROGMEM = {// CUSTOMIZE !
   TFT_BLACK,    //  0  ^-
   TFT_RED,      //  1  |-
   TFT_GREEN,    //  2  |-

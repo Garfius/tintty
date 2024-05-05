@@ -1,22 +1,32 @@
 # TinTTY
 
-Tiny console terminal implemented in Arduino C.
+Tiny console terminal implemented in Arduino C and c++.
 
-Uses EEPROM to save calibaration data.
+Uses EEPROM to save calibaration data, to re-calibrate, keep touching screen while booting.
 
-To re-calibrate, keep touching screen on boot.
+Uses frameBuffer sprite and circular buffer to process input and output data, refreshes when idle, see snappyMillisLimit.
 
-Uses frameBuffer and circular buffer to process input data in background, refreshes when idle.
+Tested at 9600 baud no errors, might work at higher speeds if optimized, see tintty_baud_rate.
 
 ![using the Arduino-based console with touchscreen stylus](tintty-v2-usage-preview.jpg)
 
 ## Prerequisites
 
 - TFT_eSPI <--User_Setup.h--> move to the lib. folder, overWrite
-- rp2040 and ili9488
-- https://github.com/earlephilhower/platform-raspberrypi
+- Raspberry pi pico(rp2040) and ili9488
+- Compiled using https://github.com/earlephilhower/platform-raspberrypi on platformio on vscode.
 
-## pins for ILI9488:
+## Optional configurations
+
+- Choose Serial console Stream device at setup() -> userTty
+- Choose refresh idle time at snappyMillisLimit
+- Choose circular buffer size at LOCAL_BUFFER_SIZE
+- Choose baud rate at tintty_baud_rate
+- Colors are pretty much made up, change at tintty.h -> myPalette
+
+### pins for ILI9488:
+
+WARNING - Pin 6 used at input.h errorLed to be used at giveErrorVisibility at input.cpp, to get phisical error feedback.
 
 - t_irq - GP6 - not used 
 - t_out - TFT_MISO  16
@@ -27,13 +37,13 @@ Uses frameBuffer and circular buffer to process input data in background, refres
 - TFT_RST   3
 - D/C    2
 
-- Choose Serial console Stream device at setup()
-
-## TO DO
+### TO DO
 
 - Test on the original ILI9341
-- Port back to AVR
- 
+- Port back to AVR if possible
+- Scroll back
+- Improve multi-core, use myCheesyFB.outputting so refresh while receiving
+
 ## Development
 
 Testing on Windows is easy to do from a Vagrant VM running Linux. Arduino usually exposes the USB connection as serial COM3 port, so the VM is configured to forward the COM3 port to `/dev/ttyS0` inside the Linux environment.

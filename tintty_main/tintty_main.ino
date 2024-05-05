@@ -1,28 +1,29 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <SPI.h>
-#include "Free_Fonts.h" // Include the header file attached to this sketch
+#include "Free_Fonts.h" // Include the header file attached to this sketch from TFT_eSPI
 #include "input.h"
 #include "tintty.h"
 /**
  * TinTTY main sketch
- * by Nick Matantsev 2017 & Gerard Forcada 2024
+ * By Nick Matantsev 2017 & Gerard Forcada 2024
  *
- * Original reference: VT100 emulation code written by Martin K. Schroeder
- * and modified by Peter Scargill.
+ * Original reference: VT100 emulation code written by Martin K. Schroeder, modified by Peter Scargill.
  * 
  * to-do:
- *  Adjust screen size to ILI9488
  *  Test on the original ILI9341
- *  Port back to AVR
+ *  Port back to AVR if possible
  *  Scroll back
+ *  Improve multi-core, use myCheesyFB.outputting so refresh while receiving
  *  
  */
-#define snappyMillisLimit 150// idle refresh time
+#define snappyMillisLimit 450// idle refresh time
 #define LOCAL_BUFFER_SIZE 128
-#define bufferProcessingBlockSize 16
+#define tintty_baud_rate 9600
+
 volatile static char myCharBuffer[LOCAL_BUFFER_SIZE];// whole ram must be buffer, lol
-char charTmp; // 4 debug
+volatile bool running = false;
+
 struct tintty_display ili9341_display = {// from serial to display from ~236 tintty_idle(&ili9341_display)
   ILI9341_WIDTH,// x
   (ILI9341_HEIGHT - KEYBOARD_HEIGHT), // y 
@@ -54,7 +55,7 @@ public:
 
     // Add a character to the buffer
     void addChar(char c) {
-        if ((tail + 1) % LOCAL_BUFFER_SIZE == head) { // Buffer is full
+        if (((tail + 1) % LOCAL_BUFFER_SIZE) == head) { // Buffer is full
           giveErrorVisibility(false);
         }
         myCharBuffer[tail] = c;
@@ -70,13 +71,6 @@ public:
         head = (head + 1) % LOCAL_BUFFER_SIZE;
         return c;
     }
-    u_int16_t size(){
-      if(head < tail ){
-        return tail-head;
-      }else if(head > tail){
-        return (LOCAL_BUFFER_SIZE-head)+tail;
-      }else return 0;
-    }
 };
 // passa el tros indicat a;
 void refreshDisplayIfNeeded(){
@@ -87,22 +81,60 @@ void refreshDisplayIfNeeded(){
     spr.pushSprite(myCheesyFB.minX,myCheesyFB.minY,myCheesyFB.minX,myCheesyFB.minY,myCheesyFB.maxX-myCheesyFB.minX,myCheesyFB.maxY-myCheesyFB.minY);
     myCheesyFB.outputting = false;
     myCheesyFB.hasChanges = false;
-    myCheesyFB = fameBufferControl{UINT16_MAX,0,UINT16_MAX,0, false,false,false,0};
+    myCheesyFB = fameBufferControl{UINT16_MAX,0,UINT16_MAX,0, false,false,0};
   }
 }
 CharBuffer buffer;
-/**
- * Aqui llegeix de entrada fins[midaBlock]
-*/
-void bufferAtoB(){ // 227
-  if((userTty->available() > 0)){
-    while(userTty->available() > 0) {
-      charTmp = (char)userTty->read();
-      buffer.addChar(charTmp);
+void loop1()
+{
+    if((userTty->available() > 0)){
+        buffer.addChar((char)userTty->read());
     }
     if(buffer.head != buffer.tail)myCheesyFB.lastRemoteDataTime = millis();
-  }
 }
+void loop()
+{
+	
+		 tintty_run(// serial to Screen
+    [](){
+      // peek idle loop, non blocking?
+      while (true) {
+        //bufferAtoB();
+        
+          if(buffer.head != buffer.tail)return myCharBuffer[buffer.head];
+          tintty_idle(&ili9341_display);
+          if (myCheesyFB.hasChanges) {
+            refreshDisplayIfNeeded();
+          }else{
+            input_idle();
+          }
+        
+      }
+    },
+    [](){
+      while(true) {// read char
+        //bufferAtoB();
+        tintty_idle(&ili9341_display);
+        
+          if(buffer.head != buffer.tail)return buffer.consumeChar();
+          if (myCheesyFB.hasChanges) {
+            refreshDisplayIfNeeded();
+          }else{
+            input_idle();
+          }
+        
+      }
+    },//send char
+    [](char ch){
+      userTty->write(ch);
+    }
+    ,
+    &ili9341_display
+  );
+}
+
+
+
 /**
  * NOT optimized AT ALL! just debugged
 */
@@ -148,77 +180,42 @@ void tft_espi_calibrate_touch(){
   }
   tft.fillScreen(TFT_BLACK);
 }
-void setup() {
-  //-----------------------Serial port setup
-  pinMode(23,OUTPUT);// millora 3.3v GPIO23 controls the RT6150 PS (Power Save) pin. When PS is low (the default on Pico) 
-  digitalWrite(23, HIGH);
-  Serial1.begin(9600,SERIAL_8N1);
-  gpio_pull_up(2);
-  userTty = &Serial1;
-  //-----------------------
-  giveErrorVisibility(true);
-  EEPROM.begin(255);
-  tft.begin();
-  tft.setFreeFont(GLCD);
-  tft.setTextSize(1);
-  spr.setFreeFont(GLCD);
-  spr.setColorDepth(4);
-  if(spr.createSprite(ILI9341_WIDTH, (ILI9341_HEIGHT - KEYBOARD_HEIGHT)) == nullptr)giveErrorVisibility(false);
-  spr.setTextSize(1);
-  spr.createPalette(tinTty_4bit_palette);
-  spr.fillSprite(0);
-/*
-  // --------test debug
-  spr.setCursor(0,0);
-  spr.setTextColor(0,7);
-  spr.println("test1");  
-  spr.setTextColor(2,6);
-  spr.println("test2");
-  spr.pushSprite(0,0);
-  size_t free_heap_size = xPortGetFreeHeapSize();
-  tft.printf("Mem: %u", (unsigned int)free_heap_size);
-  delay(500);
-  */
-  tft_espi_calibrate_touch();
-  input_init();
-  tintty_run(// serial to Screen
-    [](){
-      // peek idle loop, non blocking?
-      while (true) {
-        bufferAtoB();
-        
-          if(buffer.head != buffer.tail)return myCharBuffer[buffer.head];
-          tintty_idle(&ili9341_display);
-          if (myCheesyFB.hasChanges) {
-            refreshDisplayIfNeeded();
-          }else{
-            input_idle();
-          }
-        
-      }
-    },
-    [](){
-      while(true) {// read char
-        bufferAtoB();
-        tintty_idle(&ili9341_display);
-        
-          if(buffer.head != buffer.tail)return buffer.consumeChar();
-          if (myCheesyFB.hasChanges) {
-            refreshDisplayIfNeeded();
-          }else{
-            input_idle();
-          }
-        
-      }
-    },//send char
-    [](char ch){
-      userTty->write(ch);
-    }
-    ,
-    &ili9341_display
-  );
+void setup1() {
+  while(!running){}
 }
 
-void loop() {
-}//the variables memory is recovered automatically at the end of the loop.
+void setup() {
+  //-----------------------setup
+  pinMode(23,OUTPUT);// millora 3.3v GPIO23 controls the RT6150 PS (Power Save) pin. When PS is low (the default on Pico) 
+  digitalWrite(23, HIGH);
+  
+  Serial1.begin(tintty_baud_rate,SERIAL_8N1);
+  EEPROM.begin(255);
+  tft.begin();
+  
+  gpio_pull_up(2);// ensure pull-up for receiving wire
+  
+  userTty = &Serial1; // assign receiving serial port
+  
+  //-----------------------init
+  giveErrorVisibility(true);
+  
+  tft.setFreeFont(GLCD);
+  tft.setTextSize(1);
+  
+  spr.setFreeFont(GLCD);
+  spr.setColorDepth(8);
+  
+  if(spr.createSprite(ILI9341_WIDTH, (ILI9341_HEIGHT - KEYBOARD_HEIGHT)) == nullptr)giveErrorVisibility(false);
+  
+  spr.setTextSize(1);
+  spr.fillSprite(TFT_BLACK);
+
+  tft_espi_calibrate_touch();
+  
+  input_init();
+
+  //---------------go!
+  running = true;
+}
 

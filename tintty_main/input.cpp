@@ -18,7 +18,7 @@ const int touchKeyRowCount = 5;
 
 struct touchKey {
     int16_t x, width;
-    int code, shiftCode; // <-- enten com va això i ho tens arreglat, busca per les fletxes, linia 305,392,390?
+    int code, shiftCode;
     char label;
 };
 
@@ -349,6 +349,5 @@ void giveErrorVisibility(bool init){
 }
 
 Stream *userTty;
-
 TFT_eSPI tft = TFT_eSPI();
-TFT_eSprite spr= TFT_eSprite(&tft);  // Declare Sprite object "spr" with pointer to "tft" object
+TFT_eSprite spr= TFT_eSprite(&tft);
