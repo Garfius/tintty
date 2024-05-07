@@ -16,8 +16,8 @@
 
 #define KEY_ROW_A_Y (ILI9341_HEIGHT - KEYBOARD_HEIGHT + KEYBOARD_GUTTER)//480-(6 * 1)+(5*(16+3))+4 +4
 
-#define keyboardAutoRepeatMillis 750
-#define keyboardReleaseMillis 750
+#define keyboardAutoRepeatMillis 450
+#define keyboardReleaseMillis 150// anti bounce
 
 extern TFT_eSPI tft;
 extern TFT_eSprite spr;

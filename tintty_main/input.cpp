@@ -314,23 +314,32 @@ void input_init(){
     _input_draw_all_keys();
 }
 uint16_t xpos,ypos;
-bool isTouching = false;
+
+bool armed = false;
 unsigned int nextPush = 0;
-void input_idle() {
+unsigned int lastTouch = 0;
+
+/**
+ * tarda keyboardReleaseMillis a donar per aixecat el boli
+ * keyboardAutoRepeatMillis
+*/
+void input_idle() {// passar a lastTouch, permetre baixar 
     if (tft.getTouch(&xpos, &ypos)) {
-        if(!isTouching){
+        lastTouch = millis();
+        if(!armed){
             nextPush = millis()+keyboardAutoRepeatMillis;
-            isTouching = true;
+            armed = true;
             _input_process_touch(xpos, ypos);
         }else{
             if(millis() > nextPush){
+                nextPush = millis()+keyboardAutoRepeatMillis;
                 _input_process_release();
                 _input_process_touch(xpos, ypos);
             }
         }
-    }else if(isTouching){// si no esta tocant, netejar
+    }else if(armed && (millis()>(lastTouch+keyboardReleaseMillis))){// si no esta tocant, netejar
         _input_process_release();
-        isTouching = false;
+        armed = false;
     }
 }
 

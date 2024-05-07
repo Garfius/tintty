@@ -1,7 +1,7 @@
 
 #include "Arduino.h"
 #include "input.h"
-#define TINTTY_CHAR_WIDTH (5+1)// see .setFreeFont(GLCD); at main
+#define TINTTY_CHAR_WIDTH (5+1)// see .setFreeFont(GLCD);
 #define TINTTY_CHAR_HEIGHT (7+1)
 
 /**

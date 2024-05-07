@@ -6,9 +6,10 @@
 #include "tintty.h"
 /**
  * TinTTY main sketch
- * By Nick Matantsev 2017 & Gerard Forcada 2024
+ * by Nick Matantsev 2017 & Gerard Forcada 2024
  *
- * Original reference: VT100 emulation code written by Martin K. Schroeder, modified by Peter Scargill.
+ * Original reference: VT100 emulation code written by Martin K. Schroeder
+ * and modified by Peter Scargill.
  * 
  * to-do:
  *  Test on the original ILI9341
@@ -17,8 +18,8 @@
  *  Improve multi-core, use myCheesyFB.outputting so refresh while receiving
  *  
  */
-#define snappyMillisLimit 450// idle refresh time
-#define LOCAL_BUFFER_SIZE 128
+#define snappyMillisLimit 185// idle refresh time
+#define LOCAL_BUFFER_SIZE 800
 #define tintty_baud_rate 9600
 
 volatile static char myCharBuffer[LOCAL_BUFFER_SIZE];// whole ram must be buffer, lol
