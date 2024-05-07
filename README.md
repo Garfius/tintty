@@ -6,7 +6,7 @@ Uses EEPROM to save calibaration data, to re-calibrate, keep touching screen whi
 
 Uses frameBuffer sprite and circular buffer to process input and output data, refreshes when idle, see snappyMillisLimit.
 
-Tested at 9600 baud no errors, might work at higher speeds if optimized, see tintty_baud_rate.
+Tested at 9600 baud pretty ok.
 
 ![using the Arduino-based console with touchscreen stylus](tintty-v2-usage-preview.jpg)
 
@@ -39,6 +39,7 @@ WARNING - Pin 6 used at input.h errorLed to be used at giveErrorVisibility at in
 
 ### TO DO
 
+- Buffered scrolling
 - Test on the original ILI9341
 - Port back to AVR if possible
 - Scroll back
