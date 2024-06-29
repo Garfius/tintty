@@ -37,6 +37,8 @@ WARNING - Pin 6 used at input.h errorLed to be used at giveErrorVisibility at in
 - TFT_RST   3
 - D/C    2
 
+![wiring proposal, TO-DO paint cables](tintty-garfius-muntatge.jpg)
+
 ### TO DO
 
 - Buffered scrolling
