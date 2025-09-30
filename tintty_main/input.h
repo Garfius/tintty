@@ -24,5 +24,5 @@ extern TFT_eSprite spr;
 extern Stream *userTty;
 extern void giveErrorVisibility(bool init);
 
-void input_init();
+void input_init(uint8_t touchPin);
 void input_idle();

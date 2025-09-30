@@ -9,16 +9,14 @@
 static char identifyTerminal[] = "\e[?1;0c\0";
 // @todo refactor
 bool tintty_cursor_key_mode_application;
-
 fameBufferControl myCheesyFB{UINT16_MAX,0,UINT16_MAX,0, false,false,0};
 void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h){
-  myCheesyFB.hasChanges = true;
-  if(myCheesyFB.minX> x)myCheesyFB.minX = x;
-  if(myCheesyFB.maxX< (x+w))myCheesyFB.maxX = (x+w);
-  if(myCheesyFB.minY> y)myCheesyFB.minY = y;
-  if(myCheesyFB.maxY< (y+h))myCheesyFB.maxY = (y+h);  
+    myCheesyFB.hasChanges = true;
+    if(myCheesyFB.minX> x)myCheesyFB.minX = x;
+    if(myCheesyFB.maxX< (x+w))myCheesyFB.maxX = (x+w);
+    if(myCheesyFB.minY> y)myCheesyFB.minY = y;
+    if(myCheesyFB.maxY< (y+h))myCheesyFB.maxY = (y+h);  
 }
-
 unsigned long nextCursorBlink;
 bool cursor_bar_shown;
 

@@ -6,7 +6,7 @@
 #include "tintty.h"
 /**
  * TinTTY main sketch
- * by Nick Matantsev 2017 & Gerard Forcada 2024
+ * by Nick Matantsev 2017 & Gerard Forcada 2025
  *
  * Original reference: VT100 emulation code written by Martin K. Schroeder
  * and modified by Peter Scargill.
@@ -18,9 +18,16 @@
  *  Improve multi-core, use myCheesyFB.outputting so refresh while receiving
  *  
  */
+/**
+ * ST7735 rows 16
+ * ST7735 Cols 26
+ * ILI9488 rows 24
+ * ILI9488 Cols 80
+ */
 #define snappyMillisLimit 185// idle refresh time
 #define LOCAL_BUFFER_SIZE 800
 #define tintty_baud_rate 9600
+#define TOUCH_IRQ 8
 
 volatile static char myCharBuffer[LOCAL_BUFFER_SIZE];// whole ram must be buffer, lol
 volatile bool running = false;
@@ -214,7 +221,7 @@ void setup() {
 
   tft_espi_calibrate_touch();
   
-  input_init();
+  input_init(TOUCH_IRQ);
 
   //---------------go!
   running = true;

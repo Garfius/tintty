@@ -28,14 +28,17 @@ Tested at 9600 baud pretty ok.
 
 WARNING - Pin 6 used at input.h errorLed to be used at giveErrorVisibility at input.cpp, to get phisical error feedback.
 
-- t_irq - GP6 - not used 
-- t_out - TFT_MISO  16
-- CS - TFT_CS    17
-- TFT_MOSI  19 SDI & T_DIN
-- SCK 18 T_CLK
-- LED - TO 3V3 TO 5
-- TFT_RST   3
-- D/C    2
+- T_IRQ => GP_8
+- T_OUT == TFT_MISO => GP_16
+- T_DIN == SDI == TFT_MOSI => GP_19
+- T_CS => GP_7
+- T_CLK == SCK == TFT_SCLK => GP_18
+- SDO_MISO => 
+- LED => 3.3V || 5V
+- SCK == T_CLK == TFT_SCLK => GP_18
+- SDI == T_DIN == TFT_MOSI => GP_19
+- D/C => GP_2
+- RESET == TFT_RST => GP_3
 
 ![wiring proposal, TO-DO paint cables](tintty-garfius-muntatge.jpg)
 

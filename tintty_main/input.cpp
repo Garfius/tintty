@@ -14,6 +14,9 @@
 #define KEYCODE_CAPS -21
 #define KEYCODE_CONTROL -22
 #define KEYCODE_ARROW_START -30 // from -30 to -27
+
+#define KEYCODE_INSERT// LLIGAR A: 285
+
 const int touchKeyRowCount = 5;
 
 struct touchKey {
@@ -285,7 +288,7 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
                 userTty->print((char)27); // Esc
                 userTty->print(tintty_cursor_key_mode_application ? 'O' : '['); // different code depending on terminal state
                 userTty->print((char)(activeKey->code - KEYCODE_ARROW_START + 'A'));
-            } else {
+            } else {// #define KEYCODE_INSERT LLIGAR A: 14
                 userTty->print((char)activeKey->code);
             }
         }
@@ -302,9 +305,16 @@ void _input_process_release() {
     _input_draw_key(releasedKeyRow, releasedKey);
 }
 
-void input_init(){
+bool TouchDetected = false;
+uint8_t touchIrq;
+void touchDetected(){
+    TouchDetected = !digitalRead(touchIrq);
+}
+
+void input_init(uint8_t t_irq){
     //checkDoCalibration();
-    
+    touchIrq = t_irq;
+
     uint16_t bgColor = tft.color565(0x20, 0x20, 0x20);
 
     tft.fillRect(0, ILI9341_HEIGHT - KEYBOARD_HEIGHT, ILI9341_WIDTH, KEYBOARD_HEIGHT, bgColor);
@@ -312,7 +322,12 @@ void input_init(){
     tft.setTextSize(1);
 
     _input_draw_all_keys();
+
+    pinMode(t_irq, INPUT);
+
+    attachInterrupt(digitalPinToInterrupt(t_irq), touchDetected, CHANGE);
 }
+
 uint16_t xpos,ypos;
 
 bool armed = false;
@@ -324,7 +339,8 @@ unsigned int lastTouch = 0;
  * keyboardAutoRepeatMillis
 */
 void input_idle() {// passar a lastTouch, permetre baixar 
-    if (tft.getTouch(&xpos, &ypos)) {
+    if (TouchDetected) {
+        tft.getTouch(&xpos, &ypos);
         lastTouch = millis();
         if(!armed){
             nextPush = millis()+keyboardAutoRepeatMillis;
