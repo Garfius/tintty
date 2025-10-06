@@ -3,12 +3,13 @@
 
 #include "tintty.h"
 #include "input.h"
+#include "utils.h"
 
 #define KEY_ROW_A_X(index) (0 + (KEY_WIDTH + KEY_GUTTER) * index)
 #define KEY_ROW_B_X(index) (20 + (KEY_WIDTH + KEY_GUTTER) * index)
 #define KEY_ROW_C_X(index) (24 + (KEY_WIDTH + KEY_GUTTER) * index)
 #define KEY_ROW_D_X(index) (32 + (KEY_WIDTH + KEY_GUTTER) * index)
-#define ARROW_KEY_X(index) (ILI9341_WIDTH - (KEY_WIDTH + KEY_GUTTER) * (4 - index))
+#define ARROW_KEY_X(index) (TFT_AMPLADA - (KEY_WIDTH + KEY_GUTTER) * (4 - index))
 
 #define KEYCODE_SHIFT -20
 #define KEYCODE_CAPS -21
@@ -47,7 +48,7 @@ struct touchKeyRow {
             { KEY_ROW_A_X(10), KEY_WIDTH, '0', ')', 0 },
             { KEY_ROW_A_X(11), KEY_WIDTH, '-', '_', 0 },
             { KEY_ROW_A_X(12), KEY_WIDTH, '=', '+', 0 },
-            { KEY_ROW_A_X(13), ILI9341_WIDTH - 1 - KEY_ROW_A_X(13), 8, 8, 27 }
+            { KEY_ROW_A_X(13), TFT_AMPLADA - 1 - KEY_ROW_A_X(13), 8, 8, 27 }
         }
     },
     {
@@ -68,7 +69,7 @@ struct touchKeyRow {
             { KEY_ROW_B_X(9), KEY_WIDTH, 'p', 'P', 0 },
             { KEY_ROW_B_X(10), KEY_WIDTH, '[', '{', 0 },
             { KEY_ROW_B_X(11), KEY_WIDTH, ']', '}', 0 },
-            { KEY_ROW_B_X(12), ILI9341_WIDTH - 1 - KEY_ROW_B_X(12), '\\', '|', 0 }
+            { KEY_ROW_B_X(12), TFT_AMPLADA - 1 - KEY_ROW_B_X(12), '\\', '|', 0 }
         }
     },
     {
@@ -95,7 +96,7 @@ struct touchKeyRow {
             { KEY_ROW_C_X(9), KEY_WIDTH, ';', ':', 0 },
             { KEY_ROW_C_X(10), KEY_WIDTH, '\'', '"', 0 },
 
-            { KEY_ROW_C_X(11), ILI9341_WIDTH - 1 - KEY_ROW_C_X(11), 13, 13, 16 }
+            { KEY_ROW_C_X(11), TFT_AMPLADA - 1 - KEY_ROW_C_X(11), 13, 13, 16 }
         }
     },
     {
@@ -123,7 +124,7 @@ struct touchKeyRow {
 
             {
                 KEY_ROW_D_X(10),
-                ILI9341_WIDTH - 1 - KEY_ROW_D_X(10),
+                TFT_AMPLADA - 1 - KEY_ROW_D_X(10),
                 KEYCODE_SHIFT,
                 KEYCODE_SHIFT,
                 24
@@ -142,7 +143,7 @@ struct touchKeyRow {
                 'C'
             },
 
-            { (ILI9341_WIDTH - 100) / 2, 100, ' ', ' ', ' ' },
+            { (TFT_AMPLADA - 100) / 2, 100, ' ', ' ', ' ' },
 
             { ARROW_KEY_X(0), KEY_WIDTH, KEYCODE_ARROW_START + 3, KEYCODE_ARROW_START + 3, 17 },
             { ARROW_KEY_X(1), KEY_WIDTH, KEYCODE_ARROW_START, KEYCODE_ARROW_START, 30 },
@@ -264,8 +265,8 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
             _input_draw_key(activeRow, activeKey);
 
             if (shiftIsActive) {
-                userTty->print((char)activeKey->shiftCode);
-
+                bufferoUT.addChar((char)activeKey->shiftCode);
+                
                 // clear back to lowercase unless caps-lock
                 if (!shiftIsSticky) {
                     _input_set_mode(false, false, false);
@@ -274,22 +275,22 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
             } else if (controlIsActive) {
                 if (activeKey->code >= 97 && activeKey->code <= 122) {
                     // alpha control keys
-                    userTty->print((char)(activeKey->code - 96));
+                    bufferoUT.addChar((char)(activeKey->code - 96));
                 } else if (activeKey->code >= 91 && activeKey->code <= 93) {
                     // [, / and ] control keys
                     // @todo other stragglers
-                    userTty->print((char)(activeKey->code - 91 + 27));
+                    bufferoUT.addChar((char)(activeKey->code - 91 + 27));
                 }
 
                 // always clear back to normal
                 _input_set_mode(false, false, false);
                 _input_draw_all_keys();
             } else if (activeKey->code >= KEYCODE_ARROW_START && activeKey->code < KEYCODE_ARROW_START + 4) {
-                userTty->print((char)27); // Esc
-                userTty->print(tintty_cursor_key_mode_application ? 'O' : '['); // different code depending on terminal state
-                userTty->print((char)(activeKey->code - KEYCODE_ARROW_START + 'A'));
+                bufferoUT.addChar((char)27); // Esc
+                bufferoUT.addChar(tintty_cursor_key_mode_application ? 'O' : '['); // different code depending on terminal state
+                bufferoUT.addChar((char)(activeKey->code - KEYCODE_ARROW_START + 'A'));
             } else {// #define KEYCODE_INSERT LLIGAR A: 14
-                userTty->print((char)activeKey->code);
+                bufferoUT.addChar((char)activeKey->code);
             }
         }
     }
@@ -306,26 +307,23 @@ void _input_process_release() {
 }
 
 bool TouchDetected = false;
-uint8_t touchIrq;
+
 void touchDetected(){
-    TouchDetected = !digitalRead(touchIrq);
+    TouchDetected = !digitalRead(TOUCH_IRQ);
 }
 
-void input_init(uint8_t t_irq){
+void input_init(){
     //checkDoCalibration();
-    touchIrq = t_irq;
-
+    
     uint16_t bgColor = tft.color565(0x20, 0x20, 0x20);
 
-    tft.fillRect(0, ILI9341_HEIGHT - KEYBOARD_HEIGHT, ILI9341_WIDTH, KEYBOARD_HEIGHT, bgColor);
+    tft.fillRect(0, TFT_ALSSADA - KEYBOARD_HEIGHT, TFT_AMPLADA, KEYBOARD_HEIGHT, bgColor);
 
     tft.setTextSize(1);
 
     _input_draw_all_keys();
 
-    pinMode(t_irq, INPUT);
-
-    attachInterrupt(digitalPinToInterrupt(t_irq), touchDetected, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(TOUCH_IRQ), touchDetected, CHANGE);
 }
 
 uint16_t xpos,ypos;
@@ -339,8 +337,7 @@ unsigned int lastTouch = 0;
  * keyboardAutoRepeatMillis
 */
 void input_idle() {// passar a lastTouch, permetre baixar 
-    if (TouchDetected) {
-        tft.getTouch(&xpos, &ypos);
+    if (TouchDetected && tft.getTouch(&xpos, &ypos,TOUCH_SENSIVITY)) {
         lastTouch = millis();
         if(!armed){
             nextPush = millis()+keyboardAutoRepeatMillis;
@@ -356,20 +353,6 @@ void input_idle() {// passar a lastTouch, permetre baixar
     }else if(armed && (millis()>(lastTouch+keyboardReleaseMillis))){// si no esta tocant, netejar
         _input_process_release();
         armed = false;
-    }
-}
-
-// not optimized at all
-void giveErrorVisibility(bool init){
-    if(init){// breakpoint here
-        pinMode(errorLed,OUTPUT);
-        digitalWrite(errorLed,LOW);
-        delay(250);
-        digitalWrite(errorLed,HIGH);
-        delay(250);
-        digitalWrite(errorLed,LOW);
-    }else{
-        digitalWrite(errorLed,HIGH);
     }
 }
 

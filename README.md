@@ -6,7 +6,7 @@ Uses EEPROM to save calibaration data, to re-calibrate, keep touching screen whi
 
 Uses frameBuffer sprite and circular buffer to process input and output data, refreshes when idle, see snappyMillisLimit.
 
-Tested at 9600 baud pretty ok.
+Tested at 57600 baud ok.
 
 ![using the Arduino-based console with touchscreen stylus](tintty-v2-usage-preview.jpg)
 
@@ -18,10 +18,9 @@ Tested at 9600 baud pretty ok.
 
 ## Optional configurations
 
-- Choose Serial console Stream device at setup() -> userTty
+- Choose Serial console Stream device at setup() -> userTty (see tintty_main.ino)
 - Choose refresh idle time at snappyMillisLimit
-- Choose circular buffer size at LOCAL_BUFFER_SIZE
-- Choose baud rate at tintty_baud_rate
+- Choose circular buffer sizes at charBuffer.h
 - Colors are pretty much made up, change at tintty.h -> myPalette
 
 ### pins for ILI9488:
@@ -46,9 +45,9 @@ WARNING - Pin 6 used at input.h errorLed to be used at giveErrorVisibility at in
 
 - Buffered scrolling
 - Test on the original ILI9341
-- Port back to AVR if possible
 - Scroll back
-- Improve multi-core, use myCheesyFB.outputting so refresh while receiving
+- Improve speed, must go up to 115200
+- enable cursor
 
 ## Development
 
